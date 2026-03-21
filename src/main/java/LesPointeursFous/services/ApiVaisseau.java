@@ -1,3 +1,5 @@
+package LesPointeursFous.services;
+
 public class ApiVaisseau {
 
     private final ApiClient api;
