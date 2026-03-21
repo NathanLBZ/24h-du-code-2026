@@ -537,7 +537,7 @@ public class GameView extends Application {
             vaisseauxList.getChildren().clear();
 
             // Titre
-            Label title = new Label("🪐 PLANÈTE SÉLECTIONNÉE");
+            Label title = new Label("PLANÈTE SÉLECTIONNÉE");
             title.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
             vaisseauxList.getChildren().add(title);
 
@@ -556,21 +556,41 @@ public class GameView extends Application {
             idLabel.setStyle("-fx-text-fill: white; -fx-font-size: 10px;");
             idLabel.setWrapText(true);
 
-            // Type de planète
-            String typePlanete = "Planète";
+            // Type de planète et biome
+            String typePlanete = "Inconnu";
+            String biome = "Inconnu";
             boolean isAsteroidField = false;
-            if (planete.has("type") && planete.get("type").isJsonObject()) {
-                JsonObject type = planete.get("type").getAsJsonObject();
-                if (type.has("nom")) {
-                    typePlanete = type.get("nom").getAsString();
-                    if (typePlanete.equals("champ-asteroides")) {
+
+            if (planete.has("modelePlanete") && planete.get("modelePlanete").isJsonObject()) {
+                JsonObject modele = planete.get("modelePlanete").getAsJsonObject();
+
+                // Type de planète
+                if (modele.has("typePlanete")) {
+                    typePlanete = modele.get("typePlanete").getAsString();
+                    // Formater le type (CHAMPS_ASTEROIDES -> Champs d'astéroïdes)
+                    if (typePlanete.equals("CHAMPS_ASTEROIDES")) {
                         isAsteroidField = true;
-                        typePlanete = "Champ d'astéroïdes";
+                        typePlanete = "Champs d'astéroïdes";
+                    } else {
+                        typePlanete = typePlanete.replace("_", " ").toLowerCase();
+                        typePlanete = typePlanete.substring(0, 1).toUpperCase() + typePlanete.substring(1);
                     }
                 }
+
+                // Biome
+                if (modele.has("biome")) {
+                    biome = modele.get("biome").getAsString();
+                    // Formater le biome (GLACE -> Glace, etc.)
+                    biome = biome.toLowerCase();
+                    biome = biome.substring(0, 1).toUpperCase() + biome.substring(1);
+                }
             }
+
             Label typeLabel = new Label("Type: " + typePlanete);
-            typeLabel.setStyle("-fx-text-fill: " + (isAsteroidField ? "white" : "lightgray") + "; -fx-font-weight: " + (isAsteroidField ? "bold" : "normal") + ";");
+            typeLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+
+            Label biomeLabel = new Label("Biome: " + biome);
+            biomeLabel.setStyle("-fx-text-fill: lightgray;");
 
             // Points de vie
             int pdv = planete.has("pointDeVie") ? planete.get("pointDeVie").getAsInt() : 0;
@@ -592,36 +612,27 @@ public class GameView extends Application {
             Label propLabel = new Label("Propriétaire: " + proprietaire);
             propLabel.setStyle("-fx-text-fill: white;");
 
-            // Indicateur de couleur
-            Label colorLabel = new Label("");
-            colorLabel.setStyle("-fx-text-fill: " + toRGBCode(planeteColor) + "; -fx-font-size: 20px;");
+            // Minerais disponibles à récolter
+            int mineraiDispo = planete.has("mineraiDisponible") ? planete.get("mineraiDisponible").getAsInt() : 0;
 
-            // Ressources
-            Label ressourcesTitle = new Label("\n Ressources:");
-            ressourcesTitle.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+            Label mineraiTitle = new Label("\nMinerais disponibles:");
+            mineraiTitle.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+
+            Label mineraiLabel = new Label(mineraiDispo + " unités");
+            mineraiLabel.setStyle("-fx-text-fill: " + (mineraiDispo > 0 ? "#FFD700" : "gray") + "; -fx-font-size: 14px; -fx-font-weight: bold;");
 
             VBox ressourcesBox = new VBox(3);
-            if (planete.has("ressources") && planete.get("ressources").isJsonArray()) {
-                JsonArray ressources = planete.get("ressources").getAsJsonArray();
-                if (ressources.size() > 0) {
-                    for (int i = 0; i < ressources.size(); i++) {
-                        JsonObject res = ressources.get(i).getAsJsonObject();
-                        String type = res.has("type") ? res.get("type").getAsString() : "?";
-                        int qte = res.has("quantite") ? res.get("quantite").getAsInt() : 0;
-                        Label resLabel = new Label("  • " + type + ": " + qte);
-                        resLabel.setStyle("-fx-text-fill: lightgray;");
-                        ressourcesBox.getChildren().add(resLabel);
-                    }
-                } else {
-                    Label noResLabel = new Label("  Aucune ressource");
-                    noResLabel.setStyle("-fx-text-fill: gray;");
-                    ressourcesBox.getChildren().add(noResLabel);
-                }
+            ressourcesBox.getChildren().add(mineraiLabel);
+
+            if (mineraiDispo == 0) {
+                Label emptyLabel = new Label("  Planète épuisée");
+                emptyLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+                ressourcesBox.getChildren().add(emptyLabel);
             }
 
             // Ajouter tous les éléments au panneau
-            planetePanel.getChildren().addAll(colorLabel, posLabel, idLabel, typeLabel, pdvLabel, propLabel,
-                                              ressourcesTitle, ressourcesBox);
+            planetePanel.getChildren().addAll(posLabel, idLabel, typeLabel, biomeLabel, pdvLabel, propLabel,
+                                              mineraiTitle, ressourcesBox);
 
             // Bouton pour revenir à la liste des vaisseaux
             Button backButton = new Button("← Retour aux vaisseaux");
@@ -649,11 +660,11 @@ public class GameView extends Application {
 
             // Nom
             String nom = vaisseau.has("nom") ? vaisseau.get("nom").getAsString() : "Vaisseau";
-            Label nomLabel = new Label( nom);
+            Label nomLabel = new Label(nom);
             nomLabel.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;");
 
             // Position
-            Label posLabel = new Label(" Position: (" + x + ", " + y + ")");
+            Label posLabel = new Label("Position: (" + x + ", " + y + ")");
             posLabel.setStyle("-fx-text-fill: white;");
 
             // Identifiant
@@ -669,32 +680,42 @@ public class GameView extends Application {
 
             // Vitesse
             int vitesse = vaisseau.has("vitesse") ? vaisseau.get("vitesse").getAsInt() : 0;
-            Label vitesseLabel = new Label("⚡ Vitesse: " + vitesse);
+            Label vitesseLabel = new Label("Vitesse: " + vitesse);
             vitesseLabel.setStyle("-fx-text-fill: lightgray;");
+
+            // Minerai transporté
+            int mineraiTransporte = vaisseau.has("mineraiTransporte") ? vaisseau.get("mineraiTransporte").getAsInt() : 0;
+            Label mineraiLabel = new Label("Minerai transporté: " + mineraiTransporte);
+            mineraiLabel.setStyle("-fx-text-fill: " + (mineraiTransporte > 0 ? "#FFD700" : "lightgray") + ";");
 
             // Propriétaire
             String proprietaire = "Inconnu";
+            String proprietaireId = null;
             Color vaisseauColor = Color.GRAY;
             boolean isAlly = false;
-            if (caseObj.has("proprietaire") && caseObj.get("proprietaire").isJsonObject()) {
-                JsonObject prop = caseObj.get("proprietaire").getAsJsonObject();
-                if (prop.has("nom")) {
-                    proprietaire = prop.get("nom").getAsString();
-                    if (proprietaire.toLowerCase().contains("pointeur") ||
-                        proprietaire.toLowerCase().contains("fou")) {
-                        vaisseauColor = Color.GREEN;
-                        isAlly = true;
+
+            // Le propriétaire dans le vaisseau est un ID (string)
+            if (vaisseau.has("proprietaire")) {
+                proprietaireId = vaisseau.get("proprietaire").getAsString();
+
+                // Vérifier si c'est notre équipe
+                if (proprietaireId.equals(idEquipe)) {
+                    proprietaire = "Les Pointeurs Fous";
+                    vaisseauColor = Color.GREEN;
+                    isAlly = true;
+                } else {
+                    // Chercher dans le cache des noms d'équipes (construit depuis la carte)
+                    if (equipeNames.containsKey(proprietaireId)) {
+                        proprietaire = equipeNames.get(proprietaireId);
                     } else {
-                        vaisseauColor = Color.RED;
+                        // Nom d'équipe inconnu (pas encore rencontré sur la carte)
+                        proprietaire = "Équipe ennemie";
                     }
+                    vaisseauColor = Color.RED;
                 }
             }
             Label propLabel = new Label("Propriétaire: " + proprietaire + (isAlly ? " (VOUS)" : ""));
             propLabel.setStyle("-fx-text-fill: white;");
-
-            // Indicateur de couleur
-            Label colorLabel = new Label("●");
-            colorLabel.setStyle("-fx-text-fill: " + toRGBCode(vaisseauColor) + "; -fx-font-size: 20px;");
 
             // Modules
             Label modulesTitle = new Label("\nModules:");
@@ -719,7 +740,7 @@ public class GameView extends Application {
             }
 
             // Ressources
-            Label ressourcesTitle = new Label("\n Ressources:");
+            Label ressourcesTitle = new Label("\nRessources:");
             ressourcesTitle.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
 
             VBox ressourcesBox = new VBox(3);
@@ -742,13 +763,13 @@ public class GameView extends Application {
             }
 
             // Ajouter tous les éléments au panneau
-            vaisseauPanel.getChildren().addAll(colorLabel, nomLabel, posLabel, idLabel, pdvLabel,
-                                              vitesseLabel, propLabel, modulesTitle, modulesBox,
+            vaisseauPanel.getChildren().addAll(nomLabel, posLabel, idLabel, pdvLabel,
+                                              vitesseLabel, mineraiLabel, propLabel, modulesTitle, modulesBox,
                                               ressourcesTitle, ressourcesBox);
 
             // Boutons d'action (seulement pour nos vaisseaux)
             if (isAlly) {
-                Label actionsTitle = new Label("\n⚔️ Actions:");
+                Label actionsTitle = new Label("\nActions:");
                 actionsTitle.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
                 vaisseauPanel.getChildren().add(actionsTitle);
 
@@ -933,9 +954,9 @@ public class GameView extends Application {
         String equipeName = null;
 
         // Vérifier le type de planète (champ d'astéroïdes = blanc)
-        if (planete.has("type") && planete.get("type").isJsonObject()) {
-            JsonObject type = planete.get("type").getAsJsonObject();
-            if (type.has("nom") && type.get("nom").getAsString().equals("champ-asteroides")) {
+        if (planete.has("modelePlanete") && planete.get("modelePlanete").isJsonObject()) {
+            JsonObject modele = planete.get("modelePlanete").getAsJsonObject();
+            if (modele.has("typePlanete") && modele.get("typePlanete").getAsString().equals("CHAMPS_ASTEROIDES")) {
                 planeteColor = Color.WHITE;
                 gc.setFill(planeteColor);
                 gc.fillOval(centerX - radius, centerY - radius, radius * 2, radius * 2);
