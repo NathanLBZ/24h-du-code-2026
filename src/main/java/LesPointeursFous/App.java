@@ -27,21 +27,21 @@ public class App
         
         String idEquipe = "c1b647f1-1748-492a-b5a9-2a9af9b5e5ed";
 
-        String vaisseaux[] = {"52d71809-5895-4d3f-839b-dc2782d785d8", "128942bd-0f0c-43a8-b1d2-d6f2f5fec732"}; 
+        String vaisseaux[] = {"32b94e44-6f4f-4021-a449-395d97d63884"}; 
 
         Scanner scanner = new Scanner(System.in);
-        map.afficherMapASCII(0, 17, 0, 10);
+        map.afficherMapComplete();
 
         boolean run = true;
         while (run){
-            System.out.println(vaisseau.getVaisseaux(idEquipe));
+            //System.out.println(vaisseau.getVaisseaux(idEquipe));
             System.out.println("\n\n\n");
-            map.afficherMapASCII(34, 44, 0, 10);
+            map.afficherMapComplete();
             System.out.println("\n\n\n");
             System.out.print("Quelle action ? (quit, deplacer, recolter, deposer, attaquer) ");
             String action = scanner.nextLine();
             if (action.equals("deplacer")){
-                for (int i = 0; i < 2; i++){
+                for (int i = 0; i < 1; i++){
                     System.out.println(String.valueOf(i) + " : " + vaisseaux[i]);
                 }
                 System.out.print("Quel vaisseau ?");
@@ -53,7 +53,7 @@ public class App
 
                 vaisseau.deplacer(idEquipe, vaisseaux[nb], x, y);
             } else if (action.equals("recolter")){
-                for (int i = 0; i < 2; i++){
+                for (int i = 0; i < 1; i++){
                     System.out.println(String.valueOf(i) + " : " + vaisseaux[i]);
                 }
                 System.out.print("Quel vaisseau ?" );
@@ -65,7 +65,7 @@ public class App
 
                 vaisseau.recolter(idEquipe, vaisseaux[nb], x, y);
             } else if (action.equals("deposer")){
-                for (int i = 0; i < 2; i++){
+                for (int i = 0; i < 1; i++){
                     System.out.println(String.valueOf(i) + " : " + vaisseaux[i]);
                 }
                 System.out.print("Quel vaisseau ? ");
@@ -77,7 +77,7 @@ public class App
 
                 vaisseau.deposer(idEquipe, vaisseaux[nb], x, y);
             } else if (action.equals("attaquer")){
-                for (int i = 0; i < 2; i++){
+                for (int i = 0; i < 1; i++){
                     System.out.println(String.valueOf(i) + " : " + vaisseaux[i]);
                 }
                 System.out.print("Quel vaisseau ? ");
