@@ -21,9 +21,9 @@ public class App
         
         String idEquipe = "c1b647f1-1748-492a-b5a9-2a9af9b5e5ed";
 
-        vaisseau.deplacer(idEquipe, "128942bd-0f0c-43a8-b1d2-d6f2f5fec732", 3, 3);
+        vaisseau.deplacer(idEquipe, "52d71809-5895-4d3f-839b-dc2782d785d8", 35, 4);
 
-
-        System.out.println(vaisseau.getVaisseaux(idEquipe));
+        System.out.println("Test");
+        System.out.println(vaisseau.getVaisseaux(idEquipe) + "y");
     }
 }

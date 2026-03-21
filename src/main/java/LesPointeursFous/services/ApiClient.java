@@ -24,10 +24,12 @@ public class ApiClient {
                 .GET()
                 .build();
 
+        System.out.println("GET" + request);
         return client.send(request, HttpResponse.BodyHandlers.ofString()).body();
     }
 
     public String post(String path, String json) throws Exception {
+        System.out.println(URI.create(url + path));
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url + path))
                 .header("Authorization", "Bearer " + token)
