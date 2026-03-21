@@ -8,24 +8,17 @@ public class ApiModule {
         this.api = api;
     }
 
-    public String getModules(String idEquipe) throws Exception {
-        String path = "equipes/" + idEquipe + "/modules";
-        return api.get(path);
+    public String listerModules(String idEquipe) throws Exception {
+        return api.get("equipes/" + idEquipe + "/modules");
     }
 
-    public String getAllModules() throws Exception{
-        String path = "/modules";
-        return api.get(path);
-    }
-
-    public String getModuleById(String idEquipe, String moduleId) throws Exception {
-        String path = "equipes/" + idEquipe + "/modules/" + moduleId;
-        return api.get(path);
+    public String getModule(String idEquipe, String moduleId) throws Exception {
+        return api.get("equipes/" + idEquipe + "/modules/" + moduleId);
     }
 
     public void poserModule(String idEquipe, String moduleId, String idPlanete) throws Exception {
         String path = "equipes/" + idEquipe + "/module/" + moduleId + "/poser";
-        String json = "{\"idModule\": " + moduleId + ", \"idPlanete\": " + idPlanete + "}";
+        String json = "{\"idModule\": \"" + moduleId + "\", \"idPlanete\": \"" + idPlanete + "\"}";
 
         api.post(path, json);
     }

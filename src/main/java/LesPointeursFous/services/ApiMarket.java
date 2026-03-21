@@ -10,13 +10,16 @@ public class ApiMarket {
         return api.get("market/offres");
     }
 
-
-    // module dechargement de l'offre : aa2e2942-8ae4-4534-b25b-b1da18a30018
-    public String acheter(String idEquipe, String idOffre) throws Exception {
-        String json = "{\"idOffre\": \"" + idOffre + "\"}";
-
-        // L'endpoint est généralement celui-ci pour un achat
-        return api.post("equipes/" + idEquipe + "/acheter", json);
+    public String vendre(String ressourceId, int quantite, int prix) throws Exception {
+        String json = "{\"ressourceId\": " + ressourceId + ", \"quantite\": " + quantite + ", \"prix\": " + prix + "}";
+        return api.post("/market/offres", json);
     }
-    
+
+    public String acheter(String idOffre) throws Exception {
+        return api.get("/market/offres/" + idOffre);
+    }
+
+    public void supprimer(String idOffre) throws Exception {
+        api.delete("/market/offres/" + idOffre);
+    }
 }
