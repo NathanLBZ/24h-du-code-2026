@@ -58,4 +58,15 @@ public class ApiClient {
 
         client.send(request, HttpResponse.BodyHandlers.discarding());
     }
+
+    public String put(String path, String json) throws Exception {
+    HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(url + path))
+            .header("Authorization", "Bearer " + token)
+            .header("Content-Type", "application/json")
+            .PUT(HttpRequest.BodyPublishers.ofString(json))
+            .build();
+
+    return client.send(request, HttpResponse.BodyHandlers.ofString()).body();
+}
 }
