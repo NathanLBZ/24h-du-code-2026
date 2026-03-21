@@ -31,6 +31,9 @@ public class ApiVaisseau {
         return api.get("equipes/" + idEquipe + "/vaisseaux");
     }
 
+    public String getAllVaisseaux() throws Exception {
+        return api.get("/vaisseaux");
+    }
 
     public void attaquer(String idEquipe, String idVaisseau, int xCible, int yCible) throws Exception {
         String json = "{\"action\": \"ATTAQUE\", \"coord_x\": " + xCible + ", \"coord_y\": " + yCible + "}";
