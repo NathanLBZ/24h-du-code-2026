@@ -27,29 +27,53 @@ public class App
 
         Scanner scanner = new Scanner(System.in);
 
-        System.out.println(vaisseau.getVaisseaux(idEquipe));
-        System.out.println("\n\n\n");
+        boolean run = true;
+        while (run){
+            System.out.println(vaisseau.getVaisseaux(idEquipe));
+            System.out.println("\n\n\n");
+            System.out.print("Quelle action ? (quit, deplacer, recolter, deposer) ");
+            String action = scanner.nextLine();
+            if (action.equals("deplacer")){
+                for (int i = 0; i < 2; i++){
+                    System.out.println(String.valueOf(i) + " : " + vaisseaux[i]);
+                }
+                System.out.print("Quel vaisseau ?");
+                int nb = Integer.valueOf(scanner.nextLine());
+                System.out.print("Quel x ? ");
+                int x = Integer.valueOf(scanner.nextLine());
+                System.out.print("Quel y ? ");
+                int y = Integer.valueOf(scanner.nextLine());
 
-        System.out.print("Quelle action ? (quit, deplacer, recolter, deposer)");
-        String action = scanner.nextLine();
-        if (action == "deplacer"){
-            for (int i = 0; i < 2; i++){
-                System.out.println(String.valueOf(i) + " : " + vaisseaux[i]);
+                vaisseau.deplacer(idEquipe, vaisseaux[nb], x, y);
+            } else if (action.equals("recolter")){
+                for (int i = 0; i < 2; i++){
+                    System.out.println(String.valueOf(i) + " : " + vaisseaux[i]);
+                }
+                System.out.print("Quel vaisseau ?" );
+                int nb = Integer.valueOf(scanner.nextLine());
+                System.out.print("Quel x ? ");
+                int x = Integer.valueOf(scanner.nextLine());
+                System.out.print("Quel y ? ");
+                int y = Integer.valueOf(scanner.nextLine());
+
+                vaisseau.recolter(idEquipe, vaisseaux[nb], x, y);
+            } else if (action.equals("deposer")){
+                for (int i = 0; i < 2; i++){
+                    System.out.println(String.valueOf(i) + " : " + vaisseaux[i]);
+                }
+                System.out.print("Quel vaisseau ? ");
+                int nb = Integer.valueOf(scanner.nextLine());
+
+                vaisseau.deposer(idEquipe, vaisseaux[nb]);
             }
-            System.out.print("Quel vaisseau ?");
-            int nb = Integer.valueOf(scanner.nextLine());
-            System.out.print("Quel x ?");
-            int x = Integer.valueOf(scanner.nextLine());
-            System.out.print("Quel y ?");
-            int y = Integer.valueOf(scanner.nextLine());
 
-            vaisseau.deplacer(idEquipe, vaisseaux[nb], x, y);
-            
+
+
+
+            else if (action.equals("quit")){
+                run = false;
+            }
+            System.out.println("\n\n\n\n");
         }
-
-    
-
-        System.out.println("\n\n\n");
-        System.out.println(vaisseau.getVaisseaux(idEquipe));
     }
 }
