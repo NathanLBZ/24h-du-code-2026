@@ -1,9 +1,11 @@
 package LesPointeursFous;
 
+import LesPointeursFous.services.RoutineExtraction;
 import LesPointeursFous.services.ApiClient;
 import LesPointeursFous.services.ApiMap;
 import LesPointeursFous.services.ApiMarket;
 import LesPointeursFous.services.ApiVaisseau;
+import LesPointeursFous.services.RoutineExtraction;
 import io.github.cdimascio.dotenv.Dotenv;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -26,11 +28,24 @@ public class App
         
         String idEquipe = "c1b647f1-1748-492a-b5a9-2a9af9b5e5ed";
 
-        String vaisseaux[] = {"52d71809-5895-4d3f-839b-dc2782d785d8", "128942bd-0f0c-43a8-b1d2-d6f2f5fec732"};
+        String vaisseaux[] = {"72a610ba-93b1-4967-ba13-567b3806d1e0"};
 
         Scanner scanner = new Scanner(System.in);
         Gson gson = new Gson();
 
+        System.out.print("Quel gamestyle ? (0:classique, 1:automatique, 2:API market)");
+        int gamestyle = Integer.valueOf(scanner.nextLine());
+
+        if (gamestyle == 1){
+            RoutineExtraction RE = new RoutineExtraction(vaisseau);
+            RE.setDepot(32, 24);
+            RE.setPlanete(34, 24);
+            RE.call(idEquipe, vaisseaux[0]);
+
+        }else if (gamestyle == 2){
+            ApiMarket AM = new ApiMarket(apiFetch);
+            System.out.println(AM.listerOffres());
+        }else{
         boolean run = true;
         while (run){
             // Afficher les vaisseaux avec leurs coordonnées
@@ -119,7 +134,7 @@ public class App
                 run = false;
             }
             
-        }
+        }}
 
     }
 }

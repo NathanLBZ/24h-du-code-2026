@@ -3,6 +3,7 @@ package LesPointeursFous.services;
 public class ApiVaisseau {
 
     private final ApiClient api;
+    public static RoutineExtraction RE;
 
     public ApiVaisseau(ApiClient api) {
         this.api = api;
