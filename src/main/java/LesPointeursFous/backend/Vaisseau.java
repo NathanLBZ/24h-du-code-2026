@@ -6,10 +6,10 @@ public class Vaisseau {
     private int x;
     private int y;
 
-    public Vaisseau(int x, int y) {
+    public Vaisseau(int x, int y, int nbPV) {
         this.x = x;
         this.y = y;
-        this.nbPV = 3;
+        this.nbPV = nbPV;
     }
 
     public void Deplacer() {
@@ -26,7 +26,7 @@ public class Vaisseau {
 
     }
 
-    public void Attaquer(Planetes p) {
+    public void Attaquer(Planete p) {
        // Return fetch Ilann 
     }
 
@@ -38,7 +38,7 @@ public class Vaisseau {
         // Return fetch Ilann
     }
 
-    public void Reparer(Planetes p) {
+    public void Reparer(Planete p) {
         // Return fetch Ilann
     }
 
