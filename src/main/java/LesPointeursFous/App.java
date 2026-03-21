@@ -75,7 +75,7 @@ public class App
             map.afficherMapASCII(34, 44, 0, 10);
             System.out.println("\n\n\n");
             
-            System.out.print("Quelle action ? (quit, deplacer, recolter, deposer, attaquer) ");
+            System.out.print("Quelle action ? (quit, deplacer, recolter, deposer, attaquer, offres) ");
             String action = scanner.nextLine();
             if (action.equals("deplacer")){
                 for (int i = 0; i < 1; i++){
