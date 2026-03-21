@@ -42,6 +42,7 @@ public class ApiClient {
                 .POST(HttpRequest.BodyPublishers.ofString(json))
                 .build();
 
+        System.out.println(url + path + "\n" + json);
         return client.send(request, HttpResponse.BodyHandlers.ofString()).body();
     }
 
