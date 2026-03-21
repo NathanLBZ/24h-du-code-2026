@@ -1,3 +1,4 @@
+/*
 package LesPointeursFous.services;
 
 public class ApiMarket {
@@ -24,6 +25,9 @@ public class ApiMarket {
           }
 
         return api.post("equipes/" + idEquipe + "/acheter", json);
+    
     }
-
+    
 }
+
+*/
