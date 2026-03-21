@@ -43,7 +43,7 @@ public class Vaisseau {
     }
 
     public boolean EstEnOrbite(Vaisseau v) {
-        if (carte.getCase(x, y) == Case.Planete) {
+        if (carte.getCase(x, y) == Mappable.Planete) {
             return true;
         }
         return false;
