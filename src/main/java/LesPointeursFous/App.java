@@ -1,6 +1,7 @@
 package LesPointeursFous;
 
 import LesPointeursFous.services.ApiClient;
+import LesPointeursFous.services.ApiMap;
 import LesPointeursFous.services.ApiVaisseau;
 import io.github.cdimascio.dotenv.Dotenv;
 
@@ -20,6 +21,7 @@ public class App
         ApiClient apiFetch = new ApiClient(dotenv.get("API_URL"), dotenv.get("API_KEY"));
 
         ApiVaisseau vaisseau = new ApiVaisseau(apiFetch);
+        ApiMap map = new ApiMap(apiFetch);
         
         String idEquipe = "c1b647f1-1748-492a-b5a9-2a9af9b5e5ed";
 
@@ -30,6 +32,8 @@ public class App
         boolean run = true;
         while (run){
             System.out.println(vaisseau.getVaisseaux(idEquipe));
+            System.out.println("\n\n\n");
+            map.afficherMapASCII(34, 44, 0, 10);
             System.out.println("\n\n\n");
             System.out.print("Quelle action ? (quit, deplacer, recolter, deposer, attaquer) ");
             String action = scanner.nextLine();
@@ -87,5 +91,6 @@ public class App
             }
             System.out.println("\n\n\n\n");
         }
+
     }
 }
