@@ -8,14 +8,8 @@ public class ApiVaisseau {
         this.api = api;
     }
 
-    public void deplacer(String idEquipe, String idVaisseau, int x, int y) throws Exception {
-        String json = String.format("""
-            {
-                "action": "DEPLACEMENT",
-                "coord_x": %d,
-                "coord_y": %d
-            }
-        """, x, y);
+    public void deplacer(String idEquipe, String idVaisseau, int xArr, int yArr) throws Exception {
+        String json = "{\"action\": \"DEPLACEMENT\", \"coord_x\": " + xArr + ", \"coord_y\": " + yArr + "}";
 
         api.post("/equipes/" + idEquipe + "/vaisseaux/" + idVaisseau + "/demander-action", json);
     }

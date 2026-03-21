@@ -19,8 +19,11 @@ public class App
 
         ApiVaisseau vaisseau = new ApiVaisseau(apiFetch);
         
-        vaisseau.deplacer("c1b647f1-1748-492a-b5a9-2a9af9b5e5ed", "6ea98de8-de02-4061-9991-21f27a3ecf65", 36, 3);
-        
-        System.out.println(vaisseau.getVaisseaux("c1b647f1-1748-492a-b5a9-2a9af9b5e5ed"));
+        String idEquipe = "c1b647f1-1748-492a-b5a9-2a9af9b5e5ed";
+
+        vaisseau.deplacer(idEquipe, "128942bd-0f0c-43a8-b1d2-d6f2f5fec732", 3, 3);
+
+
+        System.out.println(vaisseau.getVaisseaux(idEquipe));
     }
 }
