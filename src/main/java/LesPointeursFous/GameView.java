@@ -10,7 +10,6 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.control.*;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.stage.Stage;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -32,8 +31,7 @@ public class GameView extends Application {
     private boolean firstLoad = true;
     private VBox vaisseauxList;
     private JsonArray currentVaisseaux;
-    private int testVaisseauX = 0;
-    private int testVaisseauY = 0;
+    private JsonArray currentMapCases;
     private Map<String, Image> vaisseauImages = new HashMap<>();
     private Set<String> alliedVaisseauxIds = new HashSet<>();
     private Set<String> alliedPlanetesIds = new HashSet<>();
@@ -86,6 +84,7 @@ public class GameView extends Application {
         int height = (yMax - yMin + 1) * CELL_SIZE;
         canvas = new Canvas(width, height);
         gc = canvas.getGraphicsContext2D();
+        System.out.println(">>> Canvas créé: " + width + "x" + height + " pixels");
 
         // Créer le panneau de vaisseaux
         vaisseauxList = new VBox(10);
@@ -93,13 +92,29 @@ public class GameView extends Application {
         vaisseauxList.setStyle("-fx-background-color: #2b2b2b;");
         vaisseauxList.setPrefWidth(300);
 
-        Label title = new Label("🚀 VOS VAISSEAUX");
+        Label title = new Label("VOS VAISSEAUX");
         title.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
         vaisseauxList.getChildren().add(title);
 
         ScrollPane scrollPane = new ScrollPane(vaisseauxList);
         scrollPane.setFitToWidth(true);
         scrollPane.setStyle("-fx-background: #2b2b2b;");
+
+        // Ajouter un gestionnaire de clic sur le canvas
+        canvas.setOnMouseClicked(event -> {
+            System.out.println("!!! CLIC DÉTECTÉ SUR LE CANVAS !!!");
+            System.out.println("Position brute: X=" + event.getX() + ", Y=" + event.getY());
+
+            int cellX = (int) (event.getX() / CELL_SIZE);
+            int cellY = (int) (event.getY() / CELL_SIZE);
+            int mapX = xMin + cellX;
+            int mapY = yMin + cellY;
+
+            System.out.println("Cellule: " + cellX + ", " + cellY);
+            System.out.println("Carte: " + mapX + ", " + mapY);
+
+            handleCellClick(mapX, mapY);
+        });
 
         // Layout principal
         HBox root = new HBox();
@@ -348,12 +363,18 @@ public class GameView extends Application {
         Button btnDeposit = new Button("Déposer");
         btnDeposit.setOnAction(e -> showActionDialog("Déposer", idVaisseau, posX, posY));
 
+        Button btnConquer = new Button("Conquérir");
+        btnConquer.setOnAction(e -> showActionDialog("Conquérir", idVaisseau, posX, posY));
+
         actionsBox.getChildren().addAll(btnMove, btnHarvest);
 
         HBox actionsBox2 = new HBox(5);
         actionsBox2.getChildren().addAll(btnAttack, btnDeposit);
 
-        panel.getChildren().addAll(nameLabel, posLabel, actionsBox, actionsBox2);
+        HBox actionsBox3 = new HBox(5);
+        actionsBox3.getChildren().add(btnConquer);
+
+        panel.getChildren().addAll(nameLabel, posLabel, actionsBox, actionsBox2, actionsBox3);
 
         return panel;
     }
@@ -428,6 +449,9 @@ public class GameView extends Application {
                     case "Déposer":
                         apiVaisseau.deposer(idEquipe, idVaisseau, x, y);
                         break;
+                    case "Conquérir":
+                        apiVaisseau.conquerir(idEquipe, idVaisseau, x, y);
+                        break;
                 }
 
                 Platform.runLater(() -> {
@@ -448,6 +472,332 @@ public class GameView extends Application {
                 });
             }
         }).start();
+    }
+
+    private void handleCellClick(int mapX, int mapY) {
+        System.out.println("\n========================================");
+        System.out.println("DEBUG CLIC: Position (" + mapX + ", " + mapY + ")");
+
+        if (currentMapCases == null) {
+            System.out.println("ERREUR: currentMapCases = null");
+            System.out.println("========================================\n");
+            return;
+        }
+
+        System.out.println("Total cases disponibles: " + currentMapCases.size());
+
+        // Chercher la case cliquée dans les données
+        for (int i = 0; i < currentMapCases.size(); i++) {
+            JsonObject caseObj = currentMapCases.get(i).getAsJsonObject();
+            int cx = caseObj.get("coord_x").getAsInt();
+            int cy = caseObj.get("coord_y").getAsInt();
+
+            if (cx == mapX && cy == mapY) {
+                System.out.println("✓ Case trouvée!");
+                System.out.println("  - Planète présente: " + caseObj.has("planete"));
+                System.out.println("  - Vaisseau présent: " + caseObj.has("vaisseau"));
+
+                // Vérifier d'abord s'il y a un vaisseau (priorité car ils sont au-dessus)
+                if (caseObj.has("vaisseau") && caseObj.get("vaisseau").isJsonObject()) {
+                    JsonObject vaisseau = caseObj.get("vaisseau").getAsJsonObject();
+                    if (vaisseau.has("idVaisseau")) {
+                        System.out.println("→ Affichage des infos du vaisseau");
+                        System.out.println("========================================\n");
+                        displayVaisseauInfo(vaisseau, caseObj, mapX, mapY);
+                        return;
+                    }
+                }
+
+                // Sinon, vérifier s'il y a une planète sur cette case
+                if (caseObj.has("planete") && caseObj.get("planete").isJsonObject()) {
+                    JsonObject planete = caseObj.get("planete").getAsJsonObject();
+                    int pdv = planete.has("pointDeVie") ? planete.get("pointDeVie").getAsInt() : 0;
+                    System.out.println("  - Points de vie planète: " + pdv);
+                    if (pdv > 0) {
+                        System.out.println("→ Affichage des infos de la planète");
+                        System.out.println("========================================\n");
+                        displayPlaneteInfo(planete, caseObj, mapX, mapY);
+                        return;
+                    }
+                }
+
+                System.out.println("! Case vide (pas de planète/vaisseau actif)");
+                System.out.println("========================================\n");
+                return;
+            }
+        }
+
+        System.out.println("✗ Case non trouvée (coordonnées ne correspondent pas)");
+        System.out.println("========================================\n");
+    }
+
+    private void displayPlaneteInfo(JsonObject planete, JsonObject caseObj, int x, int y) {
+        Platform.runLater(() -> {
+            // Effacer le contenu actuel du panneau
+            vaisseauxList.getChildren().clear();
+
+            // Titre
+            Label title = new Label("🪐 PLANÈTE SÉLECTIONNÉE");
+            title.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
+            vaisseauxList.getChildren().add(title);
+
+            // Créer un panneau pour afficher les infos de la planète
+            VBox planetePanel = new VBox(5);
+            planetePanel.setPadding(new Insets(10));
+            planetePanel.setStyle("-fx-background-color: #3a3a3a; -fx-border-color: #5a5a5a; -fx-border-width: 1;");
+
+            // Position
+            Label posLabel = new Label("Position: (" + x + ", " + y + ")");
+            posLabel.setStyle("-fx-text-fill: white;");
+
+            // Identifiant
+            String id = planete.has("identifiant") ? planete.get("identifiant").getAsString() : "N/A";
+            Label idLabel = new Label("ID: " + id);
+            idLabel.setStyle("-fx-text-fill: white; -fx-font-size: 10px;");
+            idLabel.setWrapText(true);
+
+            // Type de planète
+            String typePlanete = "Planète";
+            boolean isAsteroidField = false;
+            if (planete.has("type") && planete.get("type").isJsonObject()) {
+                JsonObject type = planete.get("type").getAsJsonObject();
+                if (type.has("nom")) {
+                    typePlanete = type.get("nom").getAsString();
+                    if (typePlanete.equals("champ-asteroides")) {
+                        isAsteroidField = true;
+                        typePlanete = "Champ d'astéroïdes";
+                    }
+                }
+            }
+            Label typeLabel = new Label("Type: " + typePlanete);
+            typeLabel.setStyle("-fx-text-fill: " + (isAsteroidField ? "white" : "lightgray") + "; -fx-font-weight: " + (isAsteroidField ? "bold" : "normal") + ";");
+
+            // Points de vie
+            int pdv = planete.has("pointDeVie") ? planete.get("pointDeVie").getAsInt() : 0;
+            Label pdvLabel = new Label("Points de vie: " + pdv);
+            pdvLabel.setStyle("-fx-text-fill: white;");
+
+            // Propriétaire
+            String proprietaire = "Neutre";
+            Color planeteColor = Color.GRAY;
+            if (isAsteroidField) {
+                planeteColor = Color.WHITE;
+            } else if (caseObj.has("proprietaire") && caseObj.get("proprietaire").isJsonObject()) {
+                JsonObject prop = caseObj.get("proprietaire").getAsJsonObject();
+                if (prop.has("nom")) {
+                    proprietaire = prop.get("nom").getAsString();
+                    planeteColor = getEquipeColor(proprietaire, proprietaire);
+                }
+            }
+            Label propLabel = new Label("Propriétaire: " + proprietaire);
+            propLabel.setStyle("-fx-text-fill: white;");
+
+            // Indicateur de couleur
+            Label colorLabel = new Label("");
+            colorLabel.setStyle("-fx-text-fill: " + toRGBCode(planeteColor) + "; -fx-font-size: 20px;");
+
+            // Ressources
+            Label ressourcesTitle = new Label("\n Ressources:");
+            ressourcesTitle.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+
+            VBox ressourcesBox = new VBox(3);
+            if (planete.has("ressources") && planete.get("ressources").isJsonArray()) {
+                JsonArray ressources = planete.get("ressources").getAsJsonArray();
+                if (ressources.size() > 0) {
+                    for (int i = 0; i < ressources.size(); i++) {
+                        JsonObject res = ressources.get(i).getAsJsonObject();
+                        String type = res.has("type") ? res.get("type").getAsString() : "?";
+                        int qte = res.has("quantite") ? res.get("quantite").getAsInt() : 0;
+                        Label resLabel = new Label("  • " + type + ": " + qte);
+                        resLabel.setStyle("-fx-text-fill: lightgray;");
+                        ressourcesBox.getChildren().add(resLabel);
+                    }
+                } else {
+                    Label noResLabel = new Label("  Aucune ressource");
+                    noResLabel.setStyle("-fx-text-fill: gray;");
+                    ressourcesBox.getChildren().add(noResLabel);
+                }
+            }
+
+            // Ajouter tous les éléments au panneau
+            planetePanel.getChildren().addAll(colorLabel, posLabel, idLabel, typeLabel, pdvLabel, propLabel,
+                                              ressourcesTitle, ressourcesBox);
+
+            // Bouton pour revenir à la liste des vaisseaux
+            Button backButton = new Button("← Retour aux vaisseaux");
+            backButton.setOnAction(e -> loadVaisseauxPanel());
+            backButton.setStyle("-fx-background-color: #4a4a4a; -fx-text-fill: white;");
+
+            vaisseauxList.getChildren().addAll(planetePanel, backButton);
+        });
+    }
+
+    private void displayVaisseauInfo(JsonObject vaisseau, JsonObject caseObj, int x, int y) {
+        Platform.runLater(() -> {
+            // Effacer le contenu actuel du panneau
+            vaisseauxList.getChildren().clear();
+
+            // Titre
+            Label title = new Label("VAISSEAU SÉLECTIONNÉ");
+            title.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
+            vaisseauxList.getChildren().add(title);
+
+            // Créer un panneau pour afficher les infos du vaisseau
+            VBox vaisseauPanel = new VBox(5);
+            vaisseauPanel.setPadding(new Insets(10));
+            vaisseauPanel.setStyle("-fx-background-color: #3a3a3a; -fx-border-color: #5a5a5a; -fx-border-width: 1;");
+
+            // Nom
+            String nom = vaisseau.has("nom") ? vaisseau.get("nom").getAsString() : "Vaisseau";
+            Label nomLabel = new Label( nom);
+            nomLabel.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;");
+
+            // Position
+            Label posLabel = new Label(" Position: (" + x + ", " + y + ")");
+            posLabel.setStyle("-fx-text-fill: white;");
+
+            // Identifiant
+            String id = vaisseau.has("idVaisseau") ? vaisseau.get("idVaisseau").getAsString() : "N/A";
+            Label idLabel = new Label("ID: " + id);
+            idLabel.setStyle("-fx-text-fill: white; -fx-font-size: 10px;");
+            idLabel.setWrapText(true);
+
+            // Points de vie
+            int pdv = vaisseau.has("pointDeVie") ? vaisseau.get("pointDeVie").getAsInt() : 0;
+            Label pdvLabel = new Label("Points de vie: " + pdv);
+            pdvLabel.setStyle("-fx-text-fill: white;");
+
+            // Vitesse
+            int vitesse = vaisseau.has("vitesse") ? vaisseau.get("vitesse").getAsInt() : 0;
+            Label vitesseLabel = new Label("⚡ Vitesse: " + vitesse);
+            vitesseLabel.setStyle("-fx-text-fill: lightgray;");
+
+            // Propriétaire
+            String proprietaire = "Inconnu";
+            Color vaisseauColor = Color.GRAY;
+            boolean isAlly = false;
+            if (caseObj.has("proprietaire") && caseObj.get("proprietaire").isJsonObject()) {
+                JsonObject prop = caseObj.get("proprietaire").getAsJsonObject();
+                if (prop.has("nom")) {
+                    proprietaire = prop.get("nom").getAsString();
+                    if (proprietaire.toLowerCase().contains("pointeur") ||
+                        proprietaire.toLowerCase().contains("fou")) {
+                        vaisseauColor = Color.GREEN;
+                        isAlly = true;
+                    } else {
+                        vaisseauColor = Color.RED;
+                    }
+                }
+            }
+            Label propLabel = new Label("Propriétaire: " + proprietaire + (isAlly ? " (VOUS)" : ""));
+            propLabel.setStyle("-fx-text-fill: white;");
+
+            // Indicateur de couleur
+            Label colorLabel = new Label("●");
+            colorLabel.setStyle("-fx-text-fill: " + toRGBCode(vaisseauColor) + "; -fx-font-size: 20px;");
+
+            // Modules
+            Label modulesTitle = new Label("\nModules:");
+            modulesTitle.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+
+            VBox modulesBox = new VBox(3);
+            if (vaisseau.has("modules") && vaisseau.get("modules").isJsonArray()) {
+                JsonArray modules = vaisseau.get("modules").getAsJsonArray();
+                if (modules.size() > 0) {
+                    for (int i = 0; i < modules.size(); i++) {
+                        JsonObject module = modules.get(i).getAsJsonObject();
+                        String moduleNom = module.has("nom") ? module.get("nom").getAsString() : "Module";
+                        Label modLabel = new Label("  • " + moduleNom);
+                        modLabel.setStyle("-fx-text-fill: lightgray;");
+                        modulesBox.getChildren().add(modLabel);
+                    }
+                } else {
+                    Label noModLabel = new Label("  Aucun module");
+                    noModLabel.setStyle("-fx-text-fill: gray;");
+                    modulesBox.getChildren().add(noModLabel);
+                }
+            }
+
+            // Ressources
+            Label ressourcesTitle = new Label("\n Ressources:");
+            ressourcesTitle.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+
+            VBox ressourcesBox = new VBox(3);
+            if (vaisseau.has("ressources") && vaisseau.get("ressources").isJsonArray()) {
+                JsonArray ressources = vaisseau.get("ressources").getAsJsonArray();
+                if (ressources.size() > 0) {
+                    for (int i = 0; i < ressources.size(); i++) {
+                        JsonObject res = ressources.get(i).getAsJsonObject();
+                        String type = res.has("type") ? res.get("type").getAsString() : "?";
+                        int qte = res.has("quantite") ? res.get("quantite").getAsInt() : 0;
+                        Label resLabel = new Label("  • " + type + ": " + qte);
+                        resLabel.setStyle("-fx-text-fill: lightgray;");
+                        ressourcesBox.getChildren().add(resLabel);
+                    }
+                } else {
+                    Label noResLabel = new Label("  Aucune ressource");
+                    noResLabel.setStyle("-fx-text-fill: gray;");
+                    ressourcesBox.getChildren().add(noResLabel);
+                }
+            }
+
+            // Ajouter tous les éléments au panneau
+            vaisseauPanel.getChildren().addAll(colorLabel, nomLabel, posLabel, idLabel, pdvLabel,
+                                              vitesseLabel, propLabel, modulesTitle, modulesBox,
+                                              ressourcesTitle, ressourcesBox);
+
+            // Boutons d'action (seulement pour nos vaisseaux)
+            if (isAlly) {
+                Label actionsTitle = new Label("\n⚔️ Actions:");
+                actionsTitle.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+                vaisseauPanel.getChildren().add(actionsTitle);
+
+                HBox actionsBox1 = new HBox(5);
+                Button btnMove = new Button("Déplacer");
+                btnMove.setOnAction(e -> showActionDialog("Déplacer", id, x, y));
+                btnMove.setStyle("-fx-background-color: #4a4a4a; -fx-text-fill: white;");
+
+                Button btnHarvest = new Button("Récolter");
+                btnHarvest.setOnAction(e -> showActionDialog("Récolter", id, x, y));
+                btnHarvest.setStyle("-fx-background-color: #4a4a4a; -fx-text-fill: white;");
+
+                actionsBox1.getChildren().addAll(btnMove, btnHarvest);
+
+                HBox actionsBox2 = new HBox(5);
+                Button btnAttack = new Button("Attaquer");
+                btnAttack.setOnAction(e -> showActionDialog("Attaquer", id, x, y));
+                btnAttack.setStyle("-fx-background-color: #4a4a4a; -fx-text-fill: white;");
+
+                Button btnDeposit = new Button("Déposer");
+                btnDeposit.setOnAction(e -> showActionDialog("Déposer", id, x, y));
+                btnDeposit.setStyle("-fx-background-color: #4a4a4a; -fx-text-fill: white;");
+
+                actionsBox2.getChildren().addAll(btnAttack, btnDeposit);
+
+                HBox actionsBox3 = new HBox(5);
+                Button btnConquer = new Button("Conquérir");
+                btnConquer.setOnAction(e -> showActionDialog("Conquérir", id, x, y));
+                btnConquer.setStyle("-fx-background-color: #4a4a4a; -fx-text-fill: white;");
+
+                actionsBox3.getChildren().add(btnConquer);
+
+                vaisseauPanel.getChildren().addAll(actionsBox1, actionsBox2, actionsBox3);
+            }
+
+            // Bouton pour revenir à la liste des vaisseaux
+            Button backButton = new Button("← Retour à la liste");
+            backButton.setOnAction(e -> loadVaisseauxPanel());
+            backButton.setStyle("-fx-background-color: #4a4a4a; -fx-text-fill: white;");
+
+            vaisseauxList.getChildren().addAll(vaisseauPanel, backButton);
+        });
+    }
+
+    private String toRGBCode(Color color) {
+        return String.format("#%02X%02X%02X",
+            (int) (color.getRed() * 255),
+            (int) (color.getGreen() * 255),
+            (int) (color.getBlue() * 255));
     }
 
     private void loadVaisseauImages() {
@@ -497,6 +847,9 @@ public class GameView extends Application {
 
             JsonArray cases = allCases;
             if (cases == null || cases.size() == 0) return;
+
+            // Stocker les cases pour pouvoir les utiliser lors des clics
+            this.currentMapCases = cases;
 
             System.out.println("Total cases chargées: " + cases.size());
 
@@ -578,6 +931,21 @@ public class GameView extends Application {
         String planeteId = planete.get("identifiant").getAsString();
         Color planeteColor = Color.GRAY; // Par défaut neutre
         String equipeName = null;
+
+        // Vérifier le type de planète (champ d'astéroïdes = blanc)
+        if (planete.has("type") && planete.get("type").isJsonObject()) {
+            JsonObject type = planete.get("type").getAsJsonObject();
+            if (type.has("nom") && type.get("nom").getAsString().equals("champ-asteroides")) {
+                planeteColor = Color.WHITE;
+                gc.setFill(planeteColor);
+                gc.fillOval(centerX - radius, centerY - radius, radius * 2, radius * 2);
+                // Bordure grise pour les distinguer
+                gc.setStroke(Color.DARKGRAY);
+                gc.setLineWidth(1);
+                gc.strokeOval(centerX - radius, centerY - radius, radius * 2, radius * 2);
+                return;
+            }
+        }
 
         // Chercher le propriétaire de cette planète
         if (caseObj.has("proprietaire") && caseObj.get("proprietaire").isJsonObject()) {
