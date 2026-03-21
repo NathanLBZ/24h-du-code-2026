@@ -21,10 +21,9 @@ public class ApiVaisseau {
         api.post("equipes/" + idEquipe + "/vaisseaux/" + idVaisseau + "/demander-action", json);
     }
     
-    public void deposer(String idEquipe, String idVaisseau) throws Exception{
-        String json = "{\"action\": \"DEPOSER\"}";
-
-        api.post("equipes/" + idEquipe + "/vaisseaux/" + idVaisseau + "/demander-action", json);
+    public void deposer(String idEquipe, String idVaisseau, int xArr, int yArr) throws Exception{
+        String json = "{\"action\": \"DEPOSER\", \"coord_x\": " + xArr + ", \"coord_y\": " + yArr + "}";
+        envoyerAction(idEquipe, idVaisseau, json);
     }
 
     public String getVaisseaux(String idEquipe) throws Exception {
