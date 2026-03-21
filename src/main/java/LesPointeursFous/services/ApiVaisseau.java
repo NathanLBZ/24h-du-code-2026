@@ -19,7 +19,7 @@ public class ApiVaisseau {
 
         api.post("equipes/" + idEquipe + "/vaisseaux/" + idVaisseau + "/demander-action", json);
     }
-    
+
     public void deposer(String idEquipe, String idVaisseau, int xArr, int yArr) throws Exception{
         String json  = "{\"action\": \"DEPOSER\", \"coord_x\": " + xArr + ", \"coord_y\": " + yArr + "}";
         System.out.println("equipes/" + idEquipe + "/vaisseaux/" + idVaisseau + "/demander-action" + json);
@@ -31,7 +31,7 @@ public class ApiVaisseau {
     }
 
     public String getAllVaisseaux() throws Exception {
-        return api.get("/vaisseaux");
+        return api.get("vaisseaux");
     }
 
     public void attaquer(String idEquipe, String idVaisseau, int xCible, int yCible) throws Exception {

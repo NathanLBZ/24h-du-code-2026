@@ -5,18 +5,17 @@ import LesPointeursFous.services.ApiMap;
 import LesPointeursFous.services.ApiMarket;
 import LesPointeursFous.services.ApiVaisseau;
 import io.github.cdimascio.dotenv.Dotenv;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 
 import java.util.Scanner;
 
-/**
- * Hello world!
- *
- */
+
 public class App 
 {
     public static void main( String[] args ) throws Exception
     {
-        System.out.println( "Hello World!" );
 
         Dotenv dotenv = Dotenv.configure().load();
         ApiClient apiFetch = new ApiClient(dotenv.get("API_URL"), dotenv.get("API_KEY"));
@@ -27,17 +26,40 @@ public class App
         
         String idEquipe = "c1b647f1-1748-492a-b5a9-2a9af9b5e5ed";
 
-        String vaisseaux[] = {"32b94e44-6f4f-4021-a449-395d97d63884"}; 
+        String vaisseaux[] = {"52d71809-5895-4d3f-839b-dc2782d785d8", "128942bd-0f0c-43a8-b1d2-d6f2f5fec732"};
 
         Scanner scanner = new Scanner(System.in);
-        map.afficherMapComplete();
+        Gson gson = new Gson();
 
         boolean run = true;
         while (run){
-            //System.out.println(vaisseau.getVaisseaux(idEquipe));
+            // Afficher les vaisseaux avec leurs coordonnées
+            String vaisseauxJson = vaisseau.getVaisseaux(idEquipe);
+            JsonArray vaisseauxArray = gson.fromJson(vaisseauxJson, JsonArray.class);
+
+            System.out.println("=== VOS VAISSEAUX ===");
+            for (int i = 0; i < vaisseauxArray.size(); i++) {
+                JsonObject v = vaisseauxArray.get(i).getAsJsonObject();
+
+                // Debug: afficher la structure du premier vaisseau
+                if (i == 0) {
+                    System.out.println("DEBUG - Structure vaisseau: " + v.toString());
+                }
+
+                String nom = v.has("nom") ? v.get("nom").getAsString() : "Inconnu";
+
+                // Les coordonnées peuvent être sous différents noms
+                int x = v.has("positionX") ? v.get("positionX").getAsInt() :
+                        (v.has("coord_x") ? v.get("coord_x").getAsInt() : 0);
+                int y = v.has("positionY") ? v.get("positionY").getAsInt() :
+                        (v.has("coord_y") ? v.get("coord_y").getAsInt() : 0);
+
+                System.out.println(i + ". " + nom + " - Position: (" + x + ", " + y + ")");
+            }
+            System.out.println("\n\n");
+            map.afficherMapASCII(34, 44, 0, 10);
             System.out.println("\n\n\n");
-            map.afficherMapComplete();
-            System.out.println("\n\n\n");
+            
             System.out.print("Quelle action ? (quit, deplacer, recolter, deposer, attaquer) ");
             String action = scanner.nextLine();
             if (action.equals("deplacer")){
@@ -70,12 +92,12 @@ public class App
                 }
                 System.out.print("Quel vaisseau ? ");
                 int nb = Integer.valueOf(scanner.nextLine());
-                System.out.print("Quel x ? ");
-                int x = Integer.valueOf(scanner.nextLine());
-                System.out.print("Quel y ? ");
-                int y = Integer.valueOf(scanner.nextLine());
+                System.out.print("Déposer à quelle position x ? ");
+                int xDepose = Integer.valueOf(scanner.nextLine());
+                System.out.print("Déposer à quelle position y ? ");
+                int yDepose = Integer.valueOf(scanner.nextLine());
 
-                vaisseau.deposer(idEquipe, vaisseaux[nb], x, y);
+                vaisseau.deposer(idEquipe, vaisseaux[nb], xDepose, yDepose);
             } else if (action.equals("attaquer")){
                 for (int i = 0; i < 1; i++){
                     System.out.println(String.valueOf(i) + " : " + vaisseaux[i]);
@@ -96,7 +118,7 @@ public class App
             else if (action.equals("quit")){
                 run = false;
             }
-            System.out.println("\n\n\n\n");
+            
         }
 
     }

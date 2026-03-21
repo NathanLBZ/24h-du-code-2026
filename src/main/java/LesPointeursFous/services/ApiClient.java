@@ -18,13 +18,20 @@ public class ApiClient {
     }
 
     public String get(String path) throws Exception {
+        String fullUrl = url + path;
+        System.out.println("[ApiClient] GET " + fullUrl);
+
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url + path))
+                .uri(URI.create(fullUrl))
                 .header("Authorization", "Bearer " + token)
                 .GET()
                 .build();
 
-        return client.send(request, HttpResponse.BodyHandlers.ofString()).body();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        System.out.println("[ApiClient] Status: " + response.statusCode());
+        System.out.println("[ApiClient] Response length: " + response.body().length() + " chars");
+
+        return response.body();
     }
 
     public String post(String path, String json) throws Exception {
