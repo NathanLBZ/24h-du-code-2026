@@ -31,7 +31,7 @@ public class App
         while (run){
             System.out.println(vaisseau.getVaisseaux(idEquipe));
             System.out.println("\n\n\n");
-            System.out.print("Quelle action ? (quit, deplacer, recolter, deposer) ");
+            System.out.print("Quelle action ? (quit, deplacer, recolter, deposer, attaquer) ");
             String action = scanner.nextLine();
             if (action.equals("deplacer")){
                 for (int i = 0; i < 2; i++){
@@ -65,6 +65,18 @@ public class App
                 int nb = Integer.valueOf(scanner.nextLine());
 
                 vaisseau.deposer(idEquipe, vaisseaux[nb]);
+            } else if (action.equals("attaquer")){
+                for (int i = 0; i < 2; i++){
+                    System.out.println(String.valueOf(i) + " : " + vaisseaux[i]);
+                }
+                System.out.print("Quel vaisseau ? ");
+                int nb = Integer.valueOf(scanner.nextLine());
+                System.out.print("Quel x ? ");
+                int xCible = Integer.valueOf(scanner.nextLine());
+                System.out.print("Quel y ? ");
+                int yCible = Integer.valueOf(scanner.nextLine());
+
+                vaisseau.attaquer(idEquipe, vaisseaux[nb], xCible, yCible);
             }
 
 
