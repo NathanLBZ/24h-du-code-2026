@@ -366,13 +366,16 @@ public class GameView extends Application {
         Button btnConquer = new Button("Conquérir");
         btnConquer.setOnAction(e -> showActionDialog("Conquérir", idVaisseau, posX, posY));
 
+        Button btnRepair = new Button("Réparer");
+        btnRepair.setOnAction(e -> executeRepairAction(idVaisseau));
+
         actionsBox.getChildren().addAll(btnMove, btnHarvest);
 
         HBox actionsBox2 = new HBox(5);
         actionsBox2.getChildren().addAll(btnAttack, btnDeposit);
 
         HBox actionsBox3 = new HBox(5);
-        actionsBox3.getChildren().add(btnConquer);
+        actionsBox3.getChildren().addAll(btnConquer, btnRepair);
 
         panel.getChildren().addAll(nameLabel, posLabel, actionsBox, actionsBox2, actionsBox3);
 
@@ -458,6 +461,31 @@ public class GameView extends Application {
                     Alert alert = new Alert(Alert.AlertType.INFORMATION);
                     alert.setTitle("Succès");
                     alert.setContentText(action + " effectué !");
+                    alert.showAndWait();
+
+                    // Recharger les vaisseaux
+                    loadVaisseauxPanel();
+                });
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Erreur");
+                    alert.setContentText("Erreur: " + e.getMessage());
+                    alert.showAndWait();
+                });
+            }
+        }).start();
+    }
+
+    private void executeRepairAction(String idVaisseau) {
+        new Thread(() -> {
+            try {
+                apiVaisseau.reparer(idEquipe, idVaisseau);
+
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("Succès");
+                    alert.setContentText("Réparation effectuée !");
                     alert.showAndWait();
 
                     // Recharger les vaisseaux
@@ -800,7 +828,11 @@ public class GameView extends Application {
                 btnConquer.setOnAction(e -> showActionDialog("Conquérir", id, x, y));
                 btnConquer.setStyle("-fx-background-color: #4a4a4a; -fx-text-fill: white;");
 
-                actionsBox3.getChildren().add(btnConquer);
+                Button btnRepair = new Button("Réparer");
+                btnRepair.setOnAction(e -> executeRepairAction(id));
+                btnRepair.setStyle("-fx-background-color: #4a4a4a; -fx-text-fill: white;");
+
+                actionsBox3.getChildren().addAll(btnConquer, btnRepair);
 
                 vaisseauPanel.getChildren().addAll(actionsBox1, actionsBox2, actionsBox3);
             }
