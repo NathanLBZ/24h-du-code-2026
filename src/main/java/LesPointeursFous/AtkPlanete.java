@@ -9,10 +9,10 @@ import com.google.gson.JsonParser;
 
 import LesPointeursFous.services.ApiClient;
 
-public class RoutineExtraction {
+public class AtkPlanete {
     private final ApiClient api;
 
-    public RoutineExtraction(ApiClient api) {
+    public AtkPlanete(ApiClient api) {
         this.api = api;
     }
 
