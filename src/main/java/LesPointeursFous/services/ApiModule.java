@@ -20,7 +20,7 @@ public class ApiModule {
         String path = "equipes/" + idEquipe + "/module/" + moduleId + "/poser";
         String json = "{\"idModule\": \"" + moduleId + "\", \"idPlanete\": \"" + idPlanete + "\"}";
 
-        api.post(path, json);
+        api.put(path, json);
     }
 
     public void supprimerModule(String idEquipe, String moduleId) throws Exception {

@@ -62,8 +62,16 @@ public class ApiVaisseau {
     }
 
     public String construireVaisseau(String idEquipe, String idTypeVaisseau, String idPlanete, String nom) throws Exception {
-        String json = "{\"idTypeVaisseau\": " + idTypeVaisseau + ", \"idPlanete\": " + idPlanete + ", \"nom\": " + nom + "}";
-        return api.post("equipes/" + idEquipe + "/vaisseau/construire", json);
+        String path = String.format("equipes/%s/vaisseau/construire", idEquipe);
+
+        String json = String.format(
+            "{\"idTypeVaisseau\": \"%s\", \"idPlanete\": \"%s\", \"nom\": \"%s\"}", 
+            idTypeVaisseau, 
+            idPlanete, 
+            nom
+        );
+
+        return api.post(path, json);
     }
 
     public String action(String idEquipe, String idVaisseau, String action, Integer x, Integer y) throws Exception {

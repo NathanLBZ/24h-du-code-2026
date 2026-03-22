@@ -12,14 +12,14 @@ public class ApiMarket {
 
     public String vendre(String ressourceId, int quantite, int prix) throws Exception {
         String json = "{\"ressourceId\": " + ressourceId + ", \"quantite\": " + quantite + ", \"prix\": " + prix + "}";
-        return api.post("/market/offres", json);
+        return api.post("market/offres", json);
     }
 
     public String acheter(String idOffre) throws Exception {
-        return api.get("/market/offres/" + idOffre);
+        return api.get("market/offres/" + idOffre);
     }
 
     public void supprimer(String idOffre) throws Exception {
-        api.delete("/market/offres/" + idOffre);
+        api.delete("market/offres/" + idOffre);
     }
 }
