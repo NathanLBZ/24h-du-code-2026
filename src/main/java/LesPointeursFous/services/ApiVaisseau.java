@@ -1,9 +1,53 @@
 package LesPointeursFous.services;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+
 public class ApiVaisseau {
 
     private final ApiClient api;
     public static RoutineExtraction RE;
+
+    public int getPrixFromOffre(JsonObject offre) throws Exception {
+
+        if (!offre.has("plan")) {
+            throw new Exception("Pas un plan");
+        }
+
+        JsonObject plan = offre.getAsJsonObject("plan");
+
+        if (!plan.has("typeVaisseau")) {
+            throw new Exception("Pas de typeVaisseau");
+        }
+
+        JsonObject type = plan.getAsJsonObject("typeVaisseau");
+
+        return type.get("coutConstruction").getAsInt();
+    }
+
+    public int getPrix(String classeRecherchee) throws Exception {
+        String json = api.get("market/offres");
+        JsonArray offres = new Gson().fromJson(json, JsonArray.class);
+
+        for (int i = 0; i < offres.size(); i++) {
+            JsonObject offre = offres.get(i).getAsJsonObject();
+
+            if (!offre.has("typeObjet")) continue;
+            if (!offre.get("typeObjet").getAsString().equals("PLAN")) continue;
+
+            JsonObject plan = offre.getAsJsonObject("plan");
+            JsonObject type = plan.getAsJsonObject("typeVaisseau");
+
+            String classe = type.get("classeVaisseau").getAsString();
+
+            if (classe.equalsIgnoreCase(classeRecherchee)) {
+                return type.get("coutConstruction").getAsInt();
+            }
+        }
+
+        return -1;
+    }
 
     public ApiVaisseau(ApiClient api) {
         this.api = api;

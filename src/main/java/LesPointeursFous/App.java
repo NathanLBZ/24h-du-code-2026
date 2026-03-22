@@ -45,6 +45,9 @@ public class App
         }else if (gamestyle == 2){
             ApiMarket AM = new ApiMarket(apiFetch);
             System.out.println(AM.listerOffres());
+
+            int prix = vaisseau.getPrix("Cargot moyen");
+            System.out.println("Prix = " + prix);
         }else{
         boolean run = true;
         while (run){
