@@ -1251,6 +1251,9 @@ public class GameView extends Application {
                 String modulesJson = apiModule.listerModules(idEquipe);
                 JsonArray modules = gson.fromJson(modulesJson, JsonArray.class);
 
+                System.out.println("=== DEBUG CONSTRUCTION ===");
+                System.out.println("Nombre de modules: " + modules.size());
+
                 Platform.runLater(() -> {
                     constructionList.getChildren().clear();
 
@@ -1264,19 +1267,39 @@ public class GameView extends Application {
                     for (int i = 0; i < modules.size(); i++) {
                         JsonObject module = modules.get(i).getAsJsonObject();
 
+                        System.out.println("\nModule " + i + ":");
+                        System.out.println("  Has idPlanete: " + module.has("idPlanete"));
+                        if (module.has("idPlanete") && !module.get("idPlanete").isJsonNull()) {
+                            System.out.println("  idPlanete: " + module.get("idPlanete").getAsString());
+                        }
+
                         // Vérifier si le module est posé sur une planète
                         if (!module.has("idPlanete") || module.get("idPlanete").isJsonNull()) {
+                            System.out.println("  -> Skip: pas sur une planète");
                             continue;
                         }
 
                         // Vérifier si c'est un module de construction
                         if (!module.has("paramModule") || module.get("paramModule").isJsonNull()) {
+                            System.out.println("  -> Skip: pas de paramModule");
                             continue;
                         }
 
                         JsonObject paramModule = module.get("paramModule").getAsJsonObject();
-                        if (!paramModule.has("typeModule") ||
-                            !paramModule.get("typeModule").getAsString().equals("CONSTRUCTION_VAISSEAUX")) {
+                        System.out.println("  paramModule: " + paramModule.toString());
+
+                        if (paramModule.has("typeModule")) {
+                            String typeModule = paramModule.get("typeModule").getAsString();
+                            System.out.println("  typeModule: " + typeModule);
+
+                            // Accepter CONSTRUCTION_VAISSEAUX et CONSTRUCTION_VAISSEAUX_AVANCEE
+                            if (!typeModule.equals("CONSTRUCTION_VAISSEAUX") &&
+                                !typeModule.equals("CONSTRUCTION_VAISSEAUX_AVANCEE")) {
+                                System.out.println("  -> Skip: type différent");
+                                continue;
+                            }
+                        } else {
+                            System.out.println("  -> Skip: pas de typeModule");
                             continue;
                         }
 
@@ -1288,6 +1311,11 @@ public class GameView extends Application {
                         // Récupérer la liste des vaisseaux constructibles
                         JsonArray vaisseauxConstructibles = paramModule.has("listeVaisseauxConstructible") ?
                             paramModule.get("listeVaisseauxConstructible").getAsJsonArray() : new JsonArray();
+
+                        System.out.println("  Vaisseaux constructibles: " + vaisseauxConstructibles.size());
+                        for (int k = 0; k < vaisseauxConstructibles.size(); k++) {
+                            System.out.println("    - " + vaisseauxConstructibles.get(k).toString());
+                        }
 
                         // Créer un panneau pour ce module de construction
                         VBox modulePanel = new VBox(5);
@@ -1368,7 +1396,15 @@ public class GameView extends Application {
     private void executeBuildShip(String idTypeVaisseau, String idPlanete, String nom) {
         new Thread(() -> {
             try {
+                System.out.println("=== CONSTRUCTION VAISSEAU ===");
+                System.out.println("idEquipe: " + idEquipe);
+                System.out.println("idTypeVaisseau: " + idTypeVaisseau);
+                System.out.println("idPlanete: " + idPlanete);
+                System.out.println("nom: " + nom);
+
                 String result = apiVaisseau.construireVaisseau(idEquipe, idTypeVaisseau, idPlanete, nom);
+
+                System.out.println("Réponse API: " + result);
 
                 // Vérifier si c'est une erreur
                 if (result != null && !result.isEmpty()) {
