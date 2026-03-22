@@ -29,6 +29,7 @@ public class GameView extends Application {
     private GraphicsContext gc;
     private Gson gson = new Gson();
     private boolean firstLoad = true;
+    private boolean isViewingDetails = false;  // Flag pour savoir si on affiche des détails
     private VBox vaisseauxList;
     private JsonArray currentVaisseaux;
     private JsonArray currentMapCases;
@@ -142,7 +143,10 @@ public class GameView extends Application {
                     Thread.sleep(2000);
                     Platform.runLater(() -> {
                         drawMap();
-                        loadVaisseauxPanel();
+                        // Ne recharger la liste que si on n'est pas en train de voir des détails
+                        if (!isViewingDetails) {
+                            loadVaisseauxPanel();
+                        }
                     });
                 } catch (InterruptedException e) {
                     break;
@@ -298,6 +302,9 @@ public class GameView extends Application {
 
     private void updateVaisseauxPanel() {
         System.out.println("DEBUG: Mise à jour du panneau vaisseaux");
+
+        // Retour à la liste (ne plus afficher les détails)
+        isViewingDetails = false;
 
         // Garder seulement le titre
         vaisseauxList.getChildren().clear();
@@ -561,6 +568,9 @@ public class GameView extends Application {
 
     private void displayPlaneteInfo(JsonObject planete, JsonObject caseObj, int x, int y) {
         Platform.runLater(() -> {
+            // Marquer qu'on affiche des détails
+            isViewingDetails = true;
+
             // Effacer le contenu actuel du panneau
             vaisseauxList.getChildren().clear();
 
@@ -673,6 +683,9 @@ public class GameView extends Application {
 
     private void displayVaisseauInfo(JsonObject vaisseau, JsonObject caseObj, int x, int y) {
         Platform.runLater(() -> {
+            // Marquer qu'on affiche des détails
+            isViewingDetails = true;
+
             // Effacer le contenu actuel du panneau
             vaisseauxList.getChildren().clear();
 
