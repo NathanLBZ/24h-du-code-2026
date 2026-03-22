@@ -19,7 +19,6 @@ public class ApiClient {
 
     public String get(String path) throws Exception {
         String fullUrl = url + path;
-        System.out.println("[ApiClient] GET " + fullUrl);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(fullUrl))
@@ -28,8 +27,6 @@ public class ApiClient {
                 .build();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        System.out.println("[ApiClient] Status: " + response.statusCode());
-        System.out.println("[ApiClient] Response length: " + response.body().length() + " chars");
 
         return response.body();
     }
@@ -42,7 +39,6 @@ public class ApiClient {
                 .POST(HttpRequest.BodyPublishers.ofString(json))
                 .build();
 
-        System.out.println(url + path + "\n" + json);
         return client.send(request, HttpResponse.BodyHandlers.ofString()).body();
     }
 

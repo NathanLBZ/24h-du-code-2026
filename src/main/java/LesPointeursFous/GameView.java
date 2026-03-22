@@ -58,11 +58,11 @@ public class GameView extends Application {
     };
     private int colorIndex = 0;
 
-    // Zone à afficher (zone réduite pour performance)
-    private int xMin = 20;
-    private int xMax = 45;
+    // Zone à afficher - 40x40 pour de meilleures performances
+    private int xMin = 0;
+    private int xMax = 58;
     private int yMin = 0;
-    private int yMax = 25;
+    private int yMax = 58;
     private static final int MAX_RANGE = 17; // Limite API : 18x18 (0-17)
 
     @Override
@@ -85,7 +85,6 @@ public class GameView extends Application {
         int height = (yMax - yMin + 1) * CELL_SIZE;
         canvas = new Canvas(width, height);
         gc = canvas.getGraphicsContext2D();
-        System.out.println(">>> Canvas créé: " + width + "x" + height + " pixels");
 
         // Créer le panneau de vaisseaux
         vaisseauxList = new VBox(10);
@@ -97,34 +96,35 @@ public class GameView extends Application {
         title.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
         vaisseauxList.getChildren().add(title);
 
+        // Panneau de vaisseaux avec scroll
         ScrollPane scrollPane = new ScrollPane(vaisseauxList);
         scrollPane.setFitToWidth(true);
         scrollPane.setStyle("-fx-background: #2b2b2b;");
 
+        // Mettre le canvas dans un ScrollPane pour permettre le défilement
+        ScrollPane canvasScroll = new ScrollPane(canvas);
+        canvasScroll.setStyle("-fx-background: #1a1a1a;");
+        HBox.setHgrow(canvasScroll, javafx.scene.layout.Priority.ALWAYS);
+
         // Ajouter un gestionnaire de clic sur le canvas
         canvas.setOnMouseClicked(event -> {
-            System.out.println("!!! CLIC DÉTECTÉ SUR LE CANVAS !!!");
-            System.out.println("Position brute: X=" + event.getX() + ", Y=" + event.getY());
-
             int cellX = (int) (event.getX() / CELL_SIZE);
             int cellY = (int) (event.getY() / CELL_SIZE);
             int mapX = xMin + cellX;
             int mapY = yMin + cellY;
-
-            System.out.println("Cellule: " + cellX + ", " + cellY);
-            System.out.println("Carte: " + mapX + ", " + mapY);
 
             handleCellClick(mapX, mapY);
         });
 
         // Layout principal
         HBox root = new HBox();
-        root.getChildren().addAll(canvas, scrollPane);
+        root.getChildren().addAll(canvasScroll, scrollPane);
 
-        Scene scene = new Scene(root, width + 300, height);
+        Scene scene = new Scene(root);
 
         primaryStage.setTitle("24h du Code - Carte du jeu");
         primaryStage.setScene(scene);
+        primaryStage.setMaximized(true);  // Maximiser la fenêtre
         primaryStage.show();
 
         // Dessiner la carte
@@ -136,18 +136,33 @@ public class GameView extends Application {
         // Charger les vaisseaux réels de l'API
         loadVaisseauxPanel();
 
-        // Rafraîchir toutes les 2 secondes
+        // Rafraîchissement différencié: liste vaisseau 2s, carte 5s
         new Thread(() -> {
+            final long[] lastVaisseauxRefresh = {System.currentTimeMillis()};
+            final long[] lastMapRefresh = {System.currentTimeMillis()};
+
             while (true) {
                 try {
-                    Thread.sleep(2000);
+                    Thread.sleep(500); // Check every 500ms for precision
+
                     Platform.runLater(() -> {
-                        drawMap();
-                        // Ne recharger la liste que si on n'est pas en train de voir des détails
-                        if (!isViewingDetails) {
-                            loadVaisseauxPanel();
+                        long currentTime = System.currentTimeMillis();
+
+                        // Refresh map every 5 seconds
+                        if (currentTime - lastMapRefresh[0] >= 5000) {
+                            drawMap();
+                            lastMapRefresh[0] = currentTime;
+                        }
+
+                        // Refresh vaisseau list every 2 seconds (if not viewing details)
+                        if (currentTime - lastVaisseauxRefresh[0] >= 2000) {
+                            if (!isViewingDetails) {
+                                loadVaisseauxPanel();
+                            }
+                            lastVaisseauxRefresh[0] = currentTime;
                         }
                     });
+
                 } catch (InterruptedException e) {
                     break;
                 }
@@ -156,25 +171,32 @@ public class GameView extends Application {
     }
 
     private Color getEquipeColor(String equipeName, String equipeId) {
-        // Notre équipe est toujours en bleu
-        if (equipeId != null && equipeId.equals(idEquipe)) {
-            equipeColors.put(equipeId, Color.BLUE);
-            equipeNames.put(equipeId, equipeName != null ? equipeName : "Notre équipe");
+        if (equipeId == null) {
+            return Color.GRAY;
+        }
+
+        // Notre équipe est toujours BLEU
+        if (equipeId.equals(idEquipe)) {
+            if (!equipeColors.containsKey(equipeId)) {
+                equipeColors.put(equipeId, Color.BLUE);
+                equipeNames.put(equipeId, equipeName != null ? equipeName : "Notre équipe");
+                System.out.println("Notre équipe: " + equipeName + " (VOUS) - Couleur: BLEU");
+            }
             return Color.BLUE;
         }
 
-        // Si l'équipe n'a pas encore de couleur, lui en assigner une
-        if (equipeId != null && !equipeColors.containsKey(equipeId)) {
+        // Si l'équipe n'a pas encore de couleur, lui en assigner une depuis la palette
+        if (!equipeColors.containsKey(equipeId)) {
             Color color = colorPalette[colorIndex % colorPalette.length];
             colorIndex++;
             equipeColors.put(equipeId, color);
             equipeNames.put(equipeId, equipeName != null ? equipeName : "Équipe " + colorIndex);
 
             // Afficher la nouvelle équipe découverte
-            System.out.println("Nouvelle équipe: " + equipeNames.get(equipeId) + " - Couleur: " + color);
+            System.out.println("Nouvelle équipe: " + equipeName + " - Couleur: " + color);
         }
 
-        return equipeId != null ? equipeColors.get(equipeId) : Color.GRAY;
+        return equipeColors.get(equipeId);
     }
 
     private void printLegend() {
@@ -216,8 +238,6 @@ public class GameView extends Application {
             equipeColors.put(idEquipe, Color.BLUE);
             equipeNames.put(idEquipe, "Les Pointeurs Fous");
 
-            System.out.println("INFO: Détection dynamique des vaisseaux et planètes alliés depuis la carte");
-
         } catch (Exception e) {
             System.err.println("Erreur lors du chargement des assets alliés: " + e.getMessage());
             e.printStackTrace();
@@ -227,15 +247,8 @@ public class GameView extends Application {
     private void loadVaisseauxPanel() {
         new Thread(() -> {
             try {
-                System.out.println("\n========================================");
-                System.out.println("DEBUG: Chargement des vaisseaux via API getVaisseaux()...");
-                System.out.println("DEBUG: URL = /equipes/" + idEquipe + "/vaisseaux");
-
                 // Récupérer directement tous nos vaisseaux avec getVaisseaux
                 String vaisseauxJson = apiVaisseau.getVaisseaux(idEquipe);
-                System.out.println("DEBUG: Réponse brute API:");
-                System.out.println(vaisseauxJson);
-                System.out.println("========================================\n");
 
                 // Vérifier si c'est une erreur
                 if (vaisseauxJson == null || vaisseauxJson.isEmpty()) {
@@ -256,8 +269,6 @@ public class GameView extends Application {
                 JsonArray vaisseaux = gson.fromJson(vaisseauxJson, JsonArray.class);
 
                 if (vaisseaux != null && vaisseaux.size() > 0) {
-                    System.out.println("✓ " + vaisseaux.size() + " vaisseaux récupérés depuis l'API");
-
                     // Filtrer uniquement les vaisseaux vivants avec une position
                     JsonArray vaisseauxVivants = new JsonArray();
                     for (int i = 0; i < vaisseaux.size(); i++) {
@@ -267,24 +278,14 @@ public class GameView extends Application {
                         boolean hasPosition = v.has("positionX") && v.has("positionY");
                         int pointDeVie = v.has("pointDeVie") ? v.get("pointDeVie").getAsInt() : 0;
 
-                        System.out.println("\nVaisseau #" + (i+1) + ":");
-                        System.out.println("  - Nom: " + (v.has("nom") ? v.get("nom").getAsString() : "N/A"));
-                        System.out.println("  - ID: " + (v.has("idVaisseau") ? v.get("idVaisseau").getAsString() : "N/A"));
-                        System.out.println("  - Position X: " + (v.has("positionX") ? v.get("positionX").getAsInt() : "N/A"));
-                        System.out.println("  - Position Y: " + (v.has("positionY") ? v.get("positionY").getAsInt() : "N/A"));
-                        System.out.println("  - Points de vie: " + pointDeVie);
-                        System.out.println("  - Statut: " + (hasPosition && pointDeVie > 0 ? "VIVANT ✓" : "DÉTRUIT ✗"));
-
                         // N'ajouter que les vaisseaux vivants avec une position
                         if (hasPosition && pointDeVie > 0) {
                             vaisseauxVivants.add(v);
                         }
                     }
 
-                    System.out.println("\n✓ " + vaisseauxVivants.size() + " vaisseaux vivants sur " + vaisseaux.size());
                     currentVaisseaux = vaisseauxVivants;
                 } else {
-                    System.err.println("ERREUR: Aucun vaisseau retourné ou réponse invalide");
                     currentVaisseaux = new JsonArray();
                 }
 
@@ -301,8 +302,6 @@ public class GameView extends Application {
     }
 
     private void updateVaisseauxPanel() {
-        System.out.println("DEBUG: Mise à jour du panneau vaisseaux");
-
         // Retour à la liste (ne plus afficher les détails)
         isViewingDetails = false;
 
@@ -320,7 +319,6 @@ public class GameView extends Application {
             return;
         }
 
-        System.out.println("DEBUG: Affichage de " + currentVaisseaux.size() + " vaisseaux");
 
         for (int i = 0; i < currentVaisseaux.size(); i++) {
             JsonObject v = currentVaisseaux.get(i).getAsJsonObject();
@@ -335,7 +333,6 @@ public class GameView extends Application {
 
             String idVaisseau = v.get("idVaisseau").getAsString();
 
-            System.out.println("DEBUG: Vaisseau " + nom + " à (" + posX + ", " + posY + ")");
 
             // Créer le panel pour ce vaisseau
             VBox vaisseauPanel = createVaisseauPanel(nom, posX, posY, idVaisseau);
@@ -390,7 +387,6 @@ public class GameView extends Application {
     }
 
     private void showActionDialog(String action, String idVaisseau, int currentX, int currentY) {
-        System.out.println("DEBUG: Action " + action + " depuis position (" + currentX + ", " + currentY + ")");
 
         // Dialogue pour choisir la direction (déplacement d'1 case seulement)
         ChoiceDialog<String> dirDialog = new ChoiceDialog<>("Nord",
@@ -436,7 +432,6 @@ public class GameView extends Application {
                     break;
             }
 
-            System.out.println("DEBUG: Cible calculée: (" + targetX + ", " + targetY + ")");
 
             // Exécuter l'action
             executeAction(action, idVaisseau, targetX, targetY);
@@ -510,16 +505,9 @@ public class GameView extends Application {
     }
 
     private void handleCellClick(int mapX, int mapY) {
-        System.out.println("\n========================================");
-        System.out.println("DEBUG CLIC: Position (" + mapX + ", " + mapY + ")");
-
         if (currentMapCases == null) {
-            System.out.println("ERREUR: currentMapCases = null");
-            System.out.println("========================================\n");
             return;
         }
-
-        System.out.println("Total cases disponibles: " + currentMapCases.size());
 
         // Chercher la case cliquée dans les données
         for (int i = 0; i < currentMapCases.size(); i++) {
@@ -528,16 +516,10 @@ public class GameView extends Application {
             int cy = caseObj.get("coord_y").getAsInt();
 
             if (cx == mapX && cy == mapY) {
-                System.out.println("✓ Case trouvée!");
-                System.out.println("  - Planète présente: " + caseObj.has("planete"));
-                System.out.println("  - Vaisseau présent: " + caseObj.has("vaisseau"));
-
                 // Vérifier d'abord s'il y a un vaisseau (priorité car ils sont au-dessus)
                 if (caseObj.has("vaisseau") && caseObj.get("vaisseau").isJsonObject()) {
                     JsonObject vaisseau = caseObj.get("vaisseau").getAsJsonObject();
                     if (vaisseau.has("idVaisseau")) {
-                        System.out.println("→ Affichage des infos du vaisseau");
-                        System.out.println("========================================\n");
                         displayVaisseauInfo(vaisseau, caseObj, mapX, mapY);
                         return;
                     }
@@ -547,23 +529,15 @@ public class GameView extends Application {
                 if (caseObj.has("planete") && caseObj.get("planete").isJsonObject()) {
                     JsonObject planete = caseObj.get("planete").getAsJsonObject();
                     int pdv = planete.has("pointDeVie") ? planete.get("pointDeVie").getAsInt() : 0;
-                    System.out.println("  - Points de vie planète: " + pdv);
                     if (pdv > 0) {
-                        System.out.println("→ Affichage des infos de la planète");
-                        System.out.println("========================================\n");
                         displayPlaneteInfo(planete, caseObj, mapX, mapY);
                         return;
                     }
                 }
 
-                System.out.println("! Case vide (pas de planète/vaisseau actif)");
-                System.out.println("========================================\n");
                 return;
             }
         }
-
-        System.out.println("✗ Case non trouvée (coordonnées ne correspondent pas)");
-        System.out.println("========================================\n");
     }
 
     private void displayPlaneteInfo(JsonObject planete, JsonObject caseObj, int x, int y) {
@@ -742,7 +716,6 @@ public class GameView extends Application {
                 // Vérifier si c'est notre équipe
                 if (proprietaireId.equals(idEquipe)) {
                     proprietaire = "Les Pointeurs Fous";
-                    vaisseauColor = Color.GREEN;
                     isAlly = true;
                 } else {
                     // Chercher dans le cache des noms d'équipes (construit depuis la carte)
@@ -752,8 +725,10 @@ public class GameView extends Application {
                         // Nom d'équipe inconnu (pas encore rencontré sur la carte)
                         proprietaire = "Équipe ennemie";
                     }
-                    vaisseauColor = Color.RED;
                 }
+
+                // Assigner une couleur unique par équipe
+                vaisseauColor = getEquipeColor(proprietaire, proprietaireId);
             }
             Label propLabel = new Label("Propriétaire: " + proprietaire + (isAlly ? " (VOUS)" : ""));
             propLabel.setStyle("-fx-text-fill: white;");
@@ -917,7 +892,6 @@ public class GameView extends Application {
             // Stocker les cases pour pouvoir les utiliser lors des clics
             this.currentMapCases = cases;
 
-            System.out.println("Total cases chargées: " + cases.size());
 
             // Dessiner les coordonnées sur les axes
             gc.setFill(Color.WHITE);
@@ -979,7 +953,7 @@ public class GameView extends Application {
 
             // Afficher la légende après le premier chargement
             if (firstLoad && !equipeColors.isEmpty()) {
-                printLegend();
+                // printLegend(); // Désactivé pour réduire les logs
                 firstLoad = false;
             }
 
@@ -1021,14 +995,13 @@ public class GameView extends Application {
             if (proprietaire.has("nom")) {
                 equipeName = proprietaire.get("nom").getAsString();
 
+                // Assigner une couleur unique par équipe
+                planeteColor = getEquipeColor(equipeName, equipeName);
+
                 // Vérifier si c'est notre équipe (par le nom)
                 if (equipeName.toLowerCase().contains("pointeur") ||
                     equipeName.toLowerCase().contains("fou")) {
-                    planeteColor = Color.BLUE;
                     alliedPlanetesIds.add(planeteId);
-                } else {
-                    // Autre équipe
-                    planeteColor = getEquipeColor(equipeName, equipeName);
                 }
             }
         }
@@ -1048,30 +1021,40 @@ public class GameView extends Application {
         double centerX = posX + CELL_SIZE / 2.0;
         double centerY = posY + CELL_SIZE / 2.0;
 
-        // Déterminer si le vaisseau est allié ou ennemi en regardant le propriétaire
-        boolean isAlly = false;
+        // Déterminer la couleur par équipe
         String vaisseauId = vaisseau.get("idVaisseau").getAsString();
+        String equipeName = null;
+        String equipeId = null;
+        Color vaisseauColor = Color.GRAY;
 
-        // Vérifier si déjà connu comme allié
-        if (alliedVaisseauxIds.contains(vaisseauId)) {
-            isAlly = true;
-        } else {
-            // Chercher dans le proprietaire de la case
-            if (caseObj.has("proprietaire") && caseObj.get("proprietaire").isJsonObject()) {
-                JsonObject proprietaire = caseObj.get("proprietaire").getAsJsonObject();
-                if (proprietaire.has("nom")) {
-                    String equipeName = proprietaire.get("nom").getAsString();
-                    if (equipeName.toLowerCase().contains("pointeur") ||
-                        equipeName.toLowerCase().contains("fou")) {
-                        isAlly = true;
-                        alliedVaisseauxIds.add(vaisseauId);
-                    }
-                }
+        // Récupérer l'ID de l'équipe propriétaire depuis le vaisseau
+        if (vaisseau.has("proprietaire")) {
+            equipeId = vaisseau.get("proprietaire").getAsString();
+        }
+
+        // Sinon chercher dans le proprietaire de la case pour avoir le nom
+        if (caseObj.has("proprietaire") && caseObj.get("proprietaire").isJsonObject()) {
+            JsonObject proprietaire = caseObj.get("proprietaire").getAsJsonObject();
+            if (proprietaire.has("nom")) {
+                equipeName = proprietaire.get("nom").getAsString();
             }
         }
 
-        // Couleur: Vert pour allié, Rouge pour ennemi
-        Color vaisseauColor = isAlly ? Color.GREEN : Color.RED;
+        // Si on a un nom d'équipe mais pas d'ID, utiliser le nom comme ID
+        if (equipeId == null && equipeName != null) {
+            equipeId = equipeName;
+        }
+
+        // Assigner une couleur unique par équipe
+        vaisseauColor = getEquipeColor(equipeName, equipeId);
+
+        // Vérifier si c'est notre équipe
+        if (equipeId != null && equipeId.equals(idEquipe)) {
+            alliedVaisseauxIds.add(vaisseauId);
+        } else if (equipeName != null && (equipeName.toLowerCase().contains("pointeur") ||
+                   equipeName.toLowerCase().contains("fou"))) {
+            alliedVaisseauxIds.add(vaisseauId);
+        }
 
         gc.setFill(vaisseauColor);
 
