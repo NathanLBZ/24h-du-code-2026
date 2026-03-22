@@ -18,24 +18,32 @@ public class ApiClient {
     }
 
     public String get(String path) throws Exception {
+        String fullUrl = url + path;
+
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url + path))
+                .uri(URI.create(fullUrl))
                 .header("Authorization", "Bearer " + token)
                 .GET()
                 .build();
 
-        return client.send(request, HttpResponse.BodyHandlers.ofString()).body();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        return response.body();
     }
 
     public String post(String path, String json) throws Exception {
+        String fullUrl = url + path;
+
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url + path))
+                .uri(URI.create(fullUrl))
                 .header("Authorization", "Bearer " + token)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(json))
                 .build();
 
-        return client.send(request, HttpResponse.BodyHandlers.ofString()).body();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        return response.body();
     }
 
     public String patch(String path, String json) throws Exception {
@@ -57,5 +65,20 @@ public class ApiClient {
                 .build();
 
         client.send(request, HttpResponse.BodyHandlers.discarding());
+    }
+
+    public String put(String path, String json) throws Exception {
+        String fullUrl = url + path;
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(fullUrl))
+                .header("Authorization", "Bearer " + token)
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(json))
+                .build();
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        return response.body();
     }
 }
