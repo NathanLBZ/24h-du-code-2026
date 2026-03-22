@@ -51,6 +51,12 @@ public class GameView extends Application {
     private String currentVaisseauId;
     private Map<String, java.time.LocalTime> shipCooldowns = new HashMap<>();
 
+    // Cache pour optimisation
+    private long lastScoreboardLoad = 0;
+    private long lastConstructionLoad = 0;
+    private static final long SCOREBOARD_CACHE_DURATION = 60000; // 60 secondes
+    private static final long CONSTRUCTION_CACHE_DURATION = 10000; // 10 secondes
+
     // Palette de couleurs pour les équipes
     private Color[] colorPalette = {
         Color.CYAN,
@@ -139,17 +145,25 @@ public class GameView extends Application {
 
         tabPane.getTabs().addAll(vaisseauxTab, constructionTab, scoreboardTab);
 
-        // Charger la construction quand l'onglet est sélectionné
+        // Charger la construction quand l'onglet est sélectionné (avec cache)
         constructionTab.setOnSelectionChanged(e -> {
             if (constructionTab.isSelected()) {
-                loadConstruction(constructionList);
+                long now = System.currentTimeMillis();
+                if (now - lastConstructionLoad > CONSTRUCTION_CACHE_DURATION) {
+                    loadConstruction(constructionList);
+                    lastConstructionLoad = now;
+                }
             }
         });
 
-        // Charger le scoreboard quand l'onglet est sélectionné
+        // Charger le scoreboard quand l'onglet est sélectionné (avec cache)
         scoreboardTab.setOnSelectionChanged(e -> {
             if (scoreboardTab.isSelected()) {
-                loadScoreboard(scoreboardList);
+                long now = System.currentTimeMillis();
+                if (now - lastScoreboardLoad > SCOREBOARD_CACHE_DURATION) {
+                    loadScoreboard(scoreboardList);
+                    lastScoreboardLoad = now;
+                }
             }
         });
 
@@ -1234,11 +1248,8 @@ public class GameView extends Application {
     private void loadConstruction(VBox constructionList) {
         new Thread(() -> {
             try {
-                System.out.println("=== CHARGEMENT CONSTRUCTION ===");
                 String modulesJson = apiModule.listerModules(idEquipe);
-                System.out.println("Modules JSON: " + modulesJson);
                 JsonArray modules = gson.fromJson(modulesJson, JsonArray.class);
-                System.out.println("Nombre de modules: " + modules.size());
 
                 Platform.runLater(() -> {
                     constructionList.getChildren().clear();
@@ -1274,18 +1285,9 @@ public class GameView extends Application {
                         String idPlanete = module.get("idPlanete").getAsString();
                         String moduleId = module.get("id").getAsString();
 
-                        System.out.println("Module de construction trouvé:");
-                        System.out.println("  ID Planète: " + idPlanete);
-                        System.out.println("  Param Module: " + paramModule.toString());
-
                         // Récupérer la liste des vaisseaux constructibles
                         JsonArray vaisseauxConstructibles = paramModule.has("listeVaisseauxConstructible") ?
                             paramModule.get("listeVaisseauxConstructible").getAsJsonArray() : new JsonArray();
-
-                        System.out.println("  Vaisseaux constructibles: " + vaisseauxConstructibles.size());
-                        for (int k = 0; k < vaisseauxConstructibles.size(); k++) {
-                            System.out.println("    - " + vaisseauxConstructibles.get(k).toString());
-                        }
 
                         // Créer un panneau pour ce module de construction
                         VBox modulePanel = new VBox(5);
@@ -1404,11 +1406,8 @@ public class GameView extends Application {
     private void loadScoreboard(VBox scoreboardList) {
         new Thread(() -> {
             try {
-                System.out.println("=== CHARGEMENT SCOREBOARD ===");
                 String equipesJson = apiEquipe.getAllEquipes();
-                System.out.println("Réponse API: " + equipesJson);
                 JsonArray equipes = gson.fromJson(equipesJson, JsonArray.class);
-                System.out.println("Nombre d'équipes: " + equipes.size());
 
                 // Calculer le score pour chaque équipe
                 java.util.List<JsonObject> teamScores = new java.util.ArrayList<>();
@@ -1417,10 +1416,10 @@ public class GameView extends Application {
                     teamScores.add(equipe);
                 }
 
-                // Trier par score de l'API
+                // Trier par score de l'API (POINT dans ressources)
                 teamScores.sort((a, b) -> {
-                    int scoreA = a.has("score") ? a.get("score").getAsInt() : 0;
-                    int scoreB = b.has("score") ? b.get("score").getAsInt() : 0;
+                    int scoreA = getScoreFromRessources(a);
+                    int scoreB = getScoreFromRessources(b);
                     return Integer.compare(scoreB, scoreA);
                 });
 
@@ -1436,19 +1435,8 @@ public class GameView extends Application {
                         JsonObject equipe = teamScores.get(rank);
                         String nom = equipe.has("nom") ? equipe.get("nom").getAsString() : "Équipe inconnue";
                         String teamId = equipe.has("idEquipe") ? equipe.get("idEquipe").getAsString() : "";
-                        int score = equipe.has("score") ? equipe.get("score").getAsInt() : 0;
-
-                        // Récupérer la monnaie (minerai)
-                        int minerai = 0;
-                        if (equipe.has("ressources") && equipe.get("ressources").isJsonArray()) {
-                            JsonArray ressources = equipe.get("ressources").getAsJsonArray();
-                            for (int i = 0; i < ressources.size(); i++) {
-                                JsonObject res = ressources.get(i).getAsJsonObject();
-                                if (res.has("quantite")) {
-                                    minerai += res.get("quantite").getAsInt();
-                                }
-                            }
-                        }
+                        int score = getScoreFromRessources(equipe);
+                        int credit = getCreditFromRessources(equipe);
 
                         // Créer le panneau de l'équipe
                         VBox teamPanel = new VBox(3);
@@ -1473,7 +1461,7 @@ public class GameView extends Application {
                         scoreLabel.setStyle("-fx-text-fill: #FFD700; -fx-font-size: 12px; -fx-font-weight: bold;");
 
                         // Monnaie
-                        Label moneyLabel = new Label("Minerai: " + minerai);
+                        Label moneyLabel = new Label("Crédits: " + credit);
                         moneyLabel.setStyle("-fx-text-fill: #90EE90; -fx-font-size: 11px;");
 
                         teamPanel.getChildren().addAll(rankLabel, scoreLabel, moneyLabel);
@@ -1492,6 +1480,42 @@ public class GameView extends Application {
                 e.printStackTrace();
             }
         }).start();
+    }
+
+    private int getScoreFromRessources(JsonObject equipe) {
+        if (!equipe.has("ressources") || !equipe.get("ressources").isJsonArray()) {
+            return 0;
+        }
+
+        JsonArray ressources = equipe.get("ressources").getAsJsonArray();
+        for (int i = 0; i < ressources.size(); i++) {
+            JsonObject res = ressources.get(i).getAsJsonObject();
+            if (res.has("ressource") && res.get("ressource").isJsonObject()) {
+                JsonObject ressource = res.get("ressource").getAsJsonObject();
+                if (ressource.has("nom") && ressource.get("nom").getAsString().equals("POINT")) {
+                    return res.has("quantite") ? res.get("quantite").getAsInt() : 0;
+                }
+            }
+        }
+        return 0;
+    }
+
+    private int getCreditFromRessources(JsonObject equipe) {
+        if (!equipe.has("ressources") || !equipe.get("ressources").isJsonArray()) {
+            return 0;
+        }
+
+        JsonArray ressources = equipe.get("ressources").getAsJsonArray();
+        for (int i = 0; i < ressources.size(); i++) {
+            JsonObject res = ressources.get(i).getAsJsonObject();
+            if (res.has("ressource") && res.get("ressource").isJsonObject()) {
+                JsonObject ressource = res.get("ressource").getAsJsonObject();
+                if (ressource.has("nom") && ressource.get("nom").getAsString().equals("CREDIT")) {
+                    return res.has("quantite") ? res.get("quantite").getAsInt() : 0;
+                }
+            }
+        }
+        return 0;
     }
 
     private void loadVaisseauImages() {
