@@ -84,7 +84,6 @@ public class ApiVaisseau {
         } else {
             json = "{\"action\": \"" + action + "\"}";
         }
-        System.out.println(path + "\n" + json);
         return api.post(path, json);
     }
 

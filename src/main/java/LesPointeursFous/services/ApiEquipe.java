@@ -15,4 +15,8 @@ public class ApiEquipe {
     public String getEquipe(String idEquipe) throws Exception {
         return api.get("equipes/" + idEquipe);
     }
+
+    public String getPlans(String idEquipe) throws Exception {
+        return api.get("equipes/" + idEquipe + "/plans");
+    }
 }

@@ -33,8 +33,6 @@ public class ApiClient {
 
     public String post(String path, String json) throws Exception {
         String fullUrl = url + path;
-        System.out.println("[POST] " + fullUrl);
-        System.out.println("[BODY] " + json);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(fullUrl))
@@ -44,8 +42,6 @@ public class ApiClient {
                 .build();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        System.out.println("[RESPONSE] Status: " + response.statusCode());
-        System.out.println("[RESPONSE] Body: " + response.body());
 
         return response.body();
     }
@@ -73,8 +69,6 @@ public class ApiClient {
 
     public String put(String path, String json) throws Exception {
         String fullUrl = url + path;
-        System.out.println("[PUT] " + fullUrl);
-        System.out.println("[BODY] " + json);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(fullUrl))
@@ -84,8 +78,6 @@ public class ApiClient {
                 .build();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        System.out.println("[RESPONSE] Status: " + response.statusCode());
-        System.out.println("[RESPONSE] Body: " + response.body());
 
         return response.body();
     }

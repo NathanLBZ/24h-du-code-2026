@@ -54,7 +54,7 @@ public class GameView extends Application {
     // Cache pour optimisation
     private long lastScoreboardLoad = 0;
     private long lastConstructionLoad = 0;
-    private static final long SCOREBOARD_CACHE_DURATION = 60000; // 60 secondes
+    private static final long SCOREBOARD_CACHE_DURATION = 120000; // 120 secondes
     private static final long CONSTRUCTION_CACHE_DURATION = 10000; // 10 secondes
 
     // Palette de couleurs pour les équipes
@@ -209,7 +209,7 @@ public class GameView extends Application {
 
             while (true) {
                 try {
-                    Thread.sleep(500); // Check every 500ms for precision
+                    Thread.sleep(2000); // Check every 2 seconds for precision
 
                     Platform.runLater(() -> {
                         long currentTime = System.currentTimeMillis();
@@ -1248,11 +1248,28 @@ public class GameView extends Application {
     private void loadConstruction(VBox constructionList) {
         new Thread(() -> {
             try {
+                // Récupérer les plans possédés par l'équipe
+                String plansJson = apiEquipe.getPlans(idEquipe);
+                JsonArray plans = gson.fromJson(plansJson, JsonArray.class);
+
+                // Extraire les classes de vaisseaux depuis les plans et créer un mapping classe -> ID
+                final Set<String> ownedShipClasses = new HashSet<>();
+                final Map<String, String> shipClassToTypeId = new HashMap<>();
+                for (int i = 0; i < plans.size(); i++) {
+                    JsonObject plan = plans.get(i).getAsJsonObject();
+                    if (plan.has("typeVaisseau") && plan.get("typeVaisseau").isJsonObject()) {
+                        JsonObject typeVaisseau = plan.get("typeVaisseau").getAsJsonObject();
+                        if (typeVaisseau.has("classeVaisseau") && typeVaisseau.has("id")) {
+                            String shipClass = typeVaisseau.get("classeVaisseau").getAsString();
+                            String shipTypeId = typeVaisseau.get("id").getAsString();
+                            ownedShipClasses.add(shipClass);
+                            shipClassToTypeId.put(shipClass, shipTypeId);
+                        }
+                    }
+                }
+
                 String modulesJson = apiModule.listerModules(idEquipe);
                 JsonArray modules = gson.fromJson(modulesJson, JsonArray.class);
-
-                System.out.println("=== DEBUG CONSTRUCTION ===");
-                System.out.println("Nombre de modules: " + modules.size());
 
                 Platform.runLater(() -> {
                     constructionList.getChildren().clear();
@@ -1267,39 +1284,27 @@ public class GameView extends Application {
                     for (int i = 0; i < modules.size(); i++) {
                         JsonObject module = modules.get(i).getAsJsonObject();
 
-                        System.out.println("\nModule " + i + ":");
-                        System.out.println("  Has idPlanete: " + module.has("idPlanete"));
-                        if (module.has("idPlanete") && !module.get("idPlanete").isJsonNull()) {
-                            System.out.println("  idPlanete: " + module.get("idPlanete").getAsString());
-                        }
-
                         // Vérifier si le module est posé sur une planète
                         if (!module.has("idPlanete") || module.get("idPlanete").isJsonNull()) {
-                            System.out.println("  -> Skip: pas sur une planète");
                             continue;
                         }
 
                         // Vérifier si c'est un module de construction
                         if (!module.has("paramModule") || module.get("paramModule").isJsonNull()) {
-                            System.out.println("  -> Skip: pas de paramModule");
                             continue;
                         }
 
                         JsonObject paramModule = module.get("paramModule").getAsJsonObject();
-                        System.out.println("  paramModule: " + paramModule.toString());
 
                         if (paramModule.has("typeModule")) {
                             String typeModule = paramModule.get("typeModule").getAsString();
-                            System.out.println("  typeModule: " + typeModule);
 
                             // Accepter CONSTRUCTION_VAISSEAUX et CONSTRUCTION_VAISSEAUX_AVANCEE
                             if (!typeModule.equals("CONSTRUCTION_VAISSEAUX") &&
                                 !typeModule.equals("CONSTRUCTION_VAISSEAUX_AVANCEE")) {
-                                System.out.println("  -> Skip: type différent");
                                 continue;
                             }
                         } else {
-                            System.out.println("  -> Skip: pas de typeModule");
                             continue;
                         }
 
@@ -1312,10 +1317,20 @@ public class GameView extends Application {
                         JsonArray vaisseauxConstructibles = paramModule.has("listeVaisseauxConstructible") ?
                             paramModule.get("listeVaisseauxConstructible").getAsJsonArray() : new JsonArray();
 
-                        System.out.println("  Vaisseaux constructibles: " + vaisseauxConstructibles.size());
+                        // Filtrer pour ne garder que les vaisseaux dont on possède les plans
+                        JsonArray vaisseauxDisponibles = new JsonArray();
                         for (int k = 0; k < vaisseauxConstructibles.size(); k++) {
-                            System.out.println("    - " + vaisseauxConstructibles.get(k).toString());
+                            JsonObject shipType = vaisseauxConstructibles.get(k).getAsJsonObject();
+                            if (shipType.has("classeVaisseau")) {
+                                String shipClass = shipType.get("classeVaisseau").getAsString();
+                                if (ownedShipClasses.contains(shipClass)) {
+                                    vaisseauxDisponibles.add(shipType);
+                                }
+                            }
                         }
+
+                        // Utiliser la liste filtrée
+                        vaisseauxConstructibles = vaisseauxDisponibles;
 
                         // Créer un panneau pour ce module de construction
                         VBox modulePanel = new VBox(5);
@@ -1338,9 +1353,11 @@ public class GameView extends Application {
 
                             for (int j = 0; j < vaisseauxConstructibles.size(); j++) {
                                 JsonObject shipType = vaisseauxConstructibles.get(j).getAsJsonObject();
-                                String idTypeVaisseau = shipType.get("id").getAsString();
                                 String classeVaisseau = shipType.has("classeVaisseau") ?
                                     shipType.get("classeVaisseau").getAsString() : "Vaisseau";
+
+                                // Utiliser l'ID du plan possédé, pas l'ID du module
+                                String idTypeVaisseau = shipClassToTypeId.getOrDefault(classeVaisseau, "");
 
                                 // Formater le nom de la classe
                                 String temp = classeVaisseau.replace("_", " ").toLowerCase();
@@ -1396,15 +1413,7 @@ public class GameView extends Application {
     private void executeBuildShip(String idTypeVaisseau, String idPlanete, String nom) {
         new Thread(() -> {
             try {
-                System.out.println("=== CONSTRUCTION VAISSEAU ===");
-                System.out.println("idEquipe: " + idEquipe);
-                System.out.println("idTypeVaisseau: " + idTypeVaisseau);
-                System.out.println("idPlanete: " + idPlanete);
-                System.out.println("nom: " + nom);
-
                 String result = apiVaisseau.construireVaisseau(idEquipe, idTypeVaisseau, idPlanete, nom);
-
-                System.out.println("Réponse API: " + result);
 
                 // Vérifier si c'est une erreur
                 if (result != null && !result.isEmpty()) {
