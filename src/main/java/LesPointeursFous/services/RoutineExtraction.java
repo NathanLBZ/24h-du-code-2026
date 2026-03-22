@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 
 public class RoutineExtraction {
+    private static final int MAX_RETRY = 3;
     private ApiVaisseau vaisseau;
     private int depot_x;
     private int depot_y;
@@ -82,93 +83,138 @@ public class RoutineExtraction {
     }
 
     public void call(String idEquipe, String vaisseauId) throws Exception {
+    int maxEchecs = 3;
 
     // -------------------------
     // 1️⃣ Récolte sur la planète
     // -------------------------
-    boolean arrive = false;
-    while (!arrive) {
-        JsonObject v = attendreDisponible(idEquipe, vaisseauId);
-        vaisseau.recolter(idEquipe, vaisseauId, planete_x, planete_y);
+    int echecs = 0;
+    while (true) {
+        try {
+            JsonObject v = attendreDisponible(idEquipe, vaisseauId);
+            vaisseau.recolter(idEquipe, vaisseauId, planete_x, planete_y);
 
-        int cargaison = v.has("mineraiTransporte") ? v.get("mineraiTransporte").getAsInt() : 0;
-        if (cargaison > 0) {
-            arrive = true;
-        } else {
-            System.out.println("Récolte en cours...");
-            Thread.sleep(1000);
+            // Estimation du temps de récolte (en secondes)
+            int tempsAttente = 5; // à ajuster selon le jeu
+            System.out.println("Récolte lancée, attente " + tempsAttente + "s...");
+            Thread.sleep(tempsAttente * 1000);
+
+            v = attendreDisponible(idEquipe, vaisseauId); // check final
+            int cargaison = v.has("mineraiTransporte") ? v.get("mineraiTransporte").getAsInt() : 0;
+
+            if (cargaison > 0) break; // ok, récolté
+            else throw new Exception("Récolte vide !");
+        } catch (Exception e) {
+            echecs++;
+            System.out.println("Échec récolte n°" + echecs + " : " + e.getMessage());
+            if (echecs >= maxEchecs) {
+                System.out.println("Trop d'échecs, on skip ce vaisseau.");
+                return;
+            }
         }
     }
 
     // -------------------------
     // 2️⃣ Déplacements Aller
     // -------------------------
-    for (int index = 0; index < this.deplacementsAller.size(); index += 2) {
-        int xDest = this.deplacementsAller.get(index);
-        int yDest = this.deplacementsAller.get(index + 1);
+    for (int index = 0; index < deplacementsAller.size(); index += 2) {
+        int xDest = deplacementsAller.get(index);
+        int yDest = deplacementsAller.get(index + 1);
 
-        boolean atteint = false;
-        while (!atteint) {
-            attendreDisponible(idEquipe, vaisseauId);
-            vaisseau.deplacer(idEquipe, vaisseauId, xDest, yDest);
+        echecs = 0;
+        while (true) {
+            try {
+                JsonObject v = attendreDisponible(idEquipe, vaisseauId);
+                vaisseau.deplacer(idEquipe, vaisseauId, xDest, yDest);
 
-            JsonObject v = attendreDisponible(idEquipe, vaisseauId);
-            int xActuel = v.has("positionX") ? v.get("positionX").getAsInt() : 0;
-            int yActuel = v.has("positionY") ? v.get("positionY").getAsInt() : 0;
+                // Estimation du temps de déplacement
+                int xActuel = v.has("positionX") ? v.get("positionX").getAsInt() : 0;
+                int yActuel = v.has("positionY") ? v.get("positionY").getAsInt() : 0;
+                int distance = Math.abs(xDest - xActuel) + Math.abs(yDest - yActuel);
+                int vitesse = v.has("vitesse") ? v.get("vitesse").getAsInt() : 1;
+                int tempsAttente = distance / Math.max(vitesse, 1) + 1;
+                System.out.println("Déplacement lancé vers (" + xDest + "," + yDest + "), attente " + tempsAttente + "s...");
+                Thread.sleep(tempsAttente * 1000);
 
-            if (xActuel == xDest && yActuel == yDest) {
-                atteint = true;
-            } else {
-                System.out.println("Vaisseau en déplacement... position actuelle: (" + xActuel + ", " + yActuel + ")");
-                Thread.sleep(1000);
+                v = attendreDisponible(idEquipe, vaisseauId); // check final
+                xActuel = v.has("positionX") ? v.get("positionX").getAsInt() : 0;
+                yActuel = v.has("positionY") ? v.get("positionY").getAsInt() : 0;
+
+                if (xActuel == xDest && yActuel == yDest) break; // ok
+                else throw new Exception("Vaisseau pas arrivé !");
+            } catch (Exception e) {
+                echecs++;
+                System.out.println("Échec déplacement n°" + echecs + " : " + e.getMessage());
+                if (echecs >= maxEchecs) {
+                    System.out.println("Trop d'échecs déplacement, on skip ce vaisseau.");
+                    return;
+                }
             }
         }
     }
 
-    // Dépot
-        boolean depotTermine = false;
-        while (!depotTermine) {
-            // 1️⃣ Attendre que le vaisseau soit prêt
+    // -------------------------
+    // 3️⃣ Dépot
+    // -------------------------
+    echecs = 0;
+    while (true) {
+        try {
             JsonObject v = attendreDisponible(idEquipe, vaisseauId);
+            vaisseau.deposer(idEquipe, vaisseauId, depot_x, depot_y);
 
-            // 2️⃣ Envoyer la requête de dépôt
-            
-            // 3️⃣ Boucle pour vérifier que la cargaison est bien vide
-            while (true) {
-                vaisseau.deposer(idEquipe, vaisseauId, depot_x, depot_y);
-                v = attendreDisponible(idEquipe, vaisseauId); // attendre fin de l'action
-                int cargaison = v.has("mineraiTransporte") ? v.get("mineraiTransporte").getAsInt() : 0;
-                if (cargaison == 0) {
-                    depotTermine = true;
-                    break;
-                } else {
-                    System.out.println("Dépot en cours... cargaison actuelle: " + cargaison);
-                    Thread.sleep(1000);
-                }
+            // Estimation temps dépôt
+            int tempsAttente = 5;
+            System.out.println("Dépôt lancé, attente " + tempsAttente + "s...");
+            Thread.sleep(tempsAttente * 1000);
+
+            v = attendreDisponible(idEquipe, vaisseauId);
+            int cargaison = v.has("mineraiTransporte") ? v.get("mineraiTransporte").getAsInt() : 0;
+
+            if (cargaison == 0) break; // ok, dépôt terminé
+            else throw new Exception("Cargaison non vide !");
+        } catch (Exception e) {
+            echecs++;
+            System.out.println("Échec dépôt n°" + echecs + " : " + e.getMessage());
+            if (echecs >= maxEchecs) {
+                System.out.println("Trop d'échecs dépôt, on skip ce vaisseau.");
+                return;
             }
         }
+    }
 
     // -------------------------
     // 4️⃣ Déplacements Retour
     // -------------------------
-    for (int index = 0; index < this.deplacementsRetour.size(); index += 2) {
-        int xDest = this.deplacementsRetour.get(index);
-        int yDest = this.deplacementsRetour.get(index + 1);
+    for (int index = 0; index < deplacementsRetour.size(); index += 2) {
+        int xDest = deplacementsRetour.get(index);
+        int yDest = deplacementsRetour.get(index + 1);
 
-        boolean atteint = false;
-        while (!atteint) {
-            attendreDisponible(idEquipe, vaisseauId);
-            vaisseau.deplacer(idEquipe, vaisseauId, xDest, yDest);
+        echecs = 0;
+        while (true) {
+            try {
+                JsonObject v = attendreDisponible(idEquipe, vaisseauId);
+                vaisseau.deplacer(idEquipe, vaisseauId, xDest, yDest);
 
-            JsonObject v = attendreDisponible(idEquipe, vaisseauId);
-            int xActuel = v.has("positionX") ? v.get("positionX").getAsInt() : 0;
-            int yActuel = v.has("positionY") ? v.get("positionY").getAsInt() : 0;
+                int xActuel = v.has("positionX") ? v.get("positionX").getAsInt() : 0;
+                int yActuel = v.has("positionY") ? v.get("positionY").getAsInt() : 0;
+                int distance = Math.abs(xDest - xActuel) + Math.abs(yDest - yActuel);
+                int vitesse = v.has("vitesse") ? v.get("vitesse").getAsInt() : 1;
+                int tempsAttente = distance / Math.max(vitesse, 1) + 1;
+                Thread.sleep(tempsAttente * 1000);
 
-            if (xActuel == xDest && yActuel == yDest) {
-                atteint = true;
-            } else {
-                System.out.println("Vaisseau en déplacement... position actuelle: (" + xActuel + ", " + yActuel + ")");
-                Thread.sleep(1000);
+                v = attendreDisponible(idEquipe, vaisseauId);
+                xActuel = v.has("positionX") ? v.get("positionX").getAsInt() : 0;
+                yActuel = v.has("positionY") ? v.get("positionY").getAsInt() : 0;
+
+                if (xActuel == xDest && yActuel == yDest) break;
+                else throw new Exception("Vaisseau pas arrivé !");
+            } catch (Exception e) {
+                echecs++;
+                System.out.println("Échec retour n°" + echecs + " : " + e.getMessage());
+                if (echecs >= maxEchecs) {
+                    System.out.println("Trop d'échecs retour, on skip ce vaisseau.");
+                    return;
+                }
             }
         }
     }
