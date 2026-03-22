@@ -57,6 +57,35 @@ public class App
         REs[3].addRetour(33, 39);
         REs[3].addRetour(33, 38);
         REs[3].addRetour(33, 37);
+<<<<<<< HEAD
+=======
+        REs[4].setPlanete(30, 36);
+        REs[4].addAller(31, 38);
+        REs[4].addAller(31, 39);
+        REs[4].addAller(31, 40);
+        REs[4].addAller(31, 41);
+        REs[4].addAller(31, 42);
+        REs[4].addAller(32, 42);
+        REs[4].addAller(33, 42);
+        REs[4].addRetour(32, 42);
+        REs[4].addRetour(31, 41);
+        REs[4].addRetour(32, 40);
+        REs[4].addRetour(32, 39);
+        REs[4].addRetour(32, 38);
+        REs[4].addRetour(31, 37);
+
+        REs[6].setPlanete(36, 38);
+        REs[6].addAller(36, 40);
+        REs[6].addAller(36, 41);
+        REs[6].addAller(36, 42);
+        REs[6].addAller(37, 42);
+        REs[6].addRetour(36, 42);
+        REs[6].addRetour(36, 41);
+        REs[6].addRetour(36, 40);
+        REs[6].addRetour(36, 39);
+        
+
+>>>>>>> ea7a3a1 (enzo)
 
         Scanner scanner = new Scanner(System.in);
         Gson gson = new Gson();
