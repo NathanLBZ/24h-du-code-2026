@@ -44,6 +44,10 @@ public class GameView extends Application {
     private ApiVaisseau apiVaisseau;
     private ApiModule apiModule;
     private String idEquipe;
+    private Label cooldownLabel;
+    private javafx.animation.Timeline cooldownTimer;
+    private String currentVaisseauId;
+    private Map<String, java.time.LocalTime> shipCooldowns = new HashMap<>();
 
     // Palette de couleurs pour les équipes
     private Color[] colorPalette = {
@@ -405,6 +409,10 @@ public class GameView extends Application {
             int targetX = currentX;
             int targetY = currentY;
 
+            System.out.println("=== ACTION: " + action + " ===");
+            System.out.println("Position actuelle: (" + currentX + ", " + currentY + ")");
+            System.out.println("Direction: " + direction);
+
             switch (direction) {
                 case "Nord":
                     targetY -= 1;
@@ -436,6 +444,7 @@ public class GameView extends Application {
                     break;
             }
 
+            System.out.println("Position cible: (" + targetX + ", " + targetY + ")");
 
             // Exécuter l'action
             executeAction(action, idVaisseau, targetX, targetY);
@@ -445,33 +454,87 @@ public class GameView extends Application {
     private void executeAction(String action, String idVaisseau, int x, int y) {
         new Thread(() -> {
             try {
+                String result = null;
                 switch (action) {
                     case "Déplacer":
-                        apiVaisseau.deplacer(idEquipe, idVaisseau, x, y);
+                        result = apiVaisseau.deplacer(idEquipe, idVaisseau, x, y);
                         break;
                     case "Récolter":
-                        apiVaisseau.recolter(idEquipe, idVaisseau, x, y);
+                        result = apiVaisseau.recolter(idEquipe, idVaisseau, x, y);
                         break;
                     case "Attaquer":
-                        apiVaisseau.attaquer(idEquipe, idVaisseau, x, y);
+                        result = apiVaisseau.attaquer(idEquipe, idVaisseau, x, y);
                         break;
                     case "Déposer":
-                        apiVaisseau.deposer(idEquipe, idVaisseau, x, y);
+                        result = apiVaisseau.deposer(idEquipe, idVaisseau, x, y);
                         break;
                     case "Conquérir":
-                        apiVaisseau.conquerir(idEquipe, idVaisseau, x, y);
+                        result = apiVaisseau.conquerir(idEquipe, idVaisseau, x, y);
                         break;
                 }
 
-                Platform.runLater(() -> {
-                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                    alert.setTitle("Succès");
-                    alert.setContentText(action + " effectué !");
-                    alert.showAndWait();
+                // Vérifier si c'est un cooldown
+                if (result != null && !result.isEmpty()) {
+                    try {
+                        JsonObject responseObj = gson.fromJson(result, JsonObject.class);
 
-                    // Recharger les vaisseaux
-                    loadVaisseauxPanel();
-                });
+                        // Vérifier si le vaisseau est en cooldown
+                        if (responseObj.has("message")) {
+                            String message = responseObj.get("message").getAsString();
+
+                            if (message.contains("Vaisseau indisponible") || message.contains("prochaine disponibilité")) {
+                                // Extraire le temps de cooldown (format: HH:MM:SS)
+                                String cooldownTime = message.substring(message.lastIndexOf(":") - 5);
+                                startCooldownTimer(cooldownTime);
+                                return;
+                            }
+                        }
+
+                        // Vérifier si c'est une autre erreur
+                        if (responseObj.has("code") && responseObj.get("code").getAsString().equals("-1")) {
+                            String errorMessage = responseObj.has("message") ?
+                                responseObj.get("message").getAsString() : "Erreur inconnue";
+                            throw new Exception(errorMessage);
+                        }
+
+                        // Chercher le cooldown dans une action réussie
+                        String cooldownInfo = "";
+                        if (responseObj.has("cooldown")) {
+                            int cooldown = responseObj.get("cooldown").getAsInt();
+                            cooldownInfo = "\n\nCooldown: " + cooldown + " secondes";
+                        } else if (responseObj.has("tempsRestant")) {
+                            int tempsRestant = responseObj.get("tempsRestant").getAsInt();
+                            cooldownInfo = "\n\nTemps restant: " + tempsRestant + " secondes";
+                        }
+
+                        String finalCooldownInfo = cooldownInfo;
+                        Platform.runLater(() -> {
+                            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                            alert.setTitle("Succès");
+                            alert.setContentText(action + " effectué !" + finalCooldownInfo);
+                            alert.showAndWait();
+                            loadVaisseauxPanel();
+                        });
+
+                        // Faire une requête de suivi pour obtenir le cooldown
+                        fetchCooldownAfterSuccess(action, idVaisseau, x, y);
+
+                    } catch (Exception e) {
+                        throw e;
+                    }
+                } else {
+                    // Réponse vide (204) - action réussie
+                    Platform.runLater(() -> {
+                        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                        alert.setTitle("Succès");
+                        alert.setContentText(action + " effectué !");
+                        alert.showAndWait();
+                        loadVaisseauxPanel();
+                    });
+
+                    // Faire une requête de suivi pour obtenir le cooldown
+                    fetchCooldownAfterSuccess(action, idVaisseau, x, y);
+                }
             } catch (Exception e) {
                 Platform.runLater(() -> {
                     Alert alert = new Alert(Alert.AlertType.ERROR);
@@ -481,6 +544,124 @@ public class GameView extends Application {
                 });
             }
         }).start();
+    }
+
+    private void fetchCooldownAfterSuccess(String action, String idVaisseau, int x, int y) {
+        // Faire une requête de suivi (qui échouera avec 423) pour obtenir le temps de cooldown
+        new Thread(() -> {
+            try {
+                // Attendre un court instant pour être sûr que le cooldown est actif
+                Thread.sleep(100);
+
+                String followUpResult = null;
+                switch (action) {
+                    case "Déplacer":
+                        followUpResult = apiVaisseau.deplacer(idEquipe, idVaisseau, x, y);
+                        break;
+                    case "Récolter":
+                        followUpResult = apiVaisseau.recolter(idEquipe, idVaisseau, x, y);
+                        break;
+                    case "Attaquer":
+                        followUpResult = apiVaisseau.attaquer(idEquipe, idVaisseau, x, y);
+                        break;
+                    case "Déposer":
+                        followUpResult = apiVaisseau.deposer(idEquipe, idVaisseau, x, y);
+                        break;
+                    case "Conquérir":
+                        followUpResult = apiVaisseau.conquerir(idEquipe, idVaisseau, x, y);
+                        break;
+                }
+
+                // Si on a une réponse, extraire le cooldown
+                if (followUpResult != null && !followUpResult.isEmpty()) {
+                    try {
+                        JsonObject responseObj = gson.fromJson(followUpResult, JsonObject.class);
+                        if (responseObj.has("message")) {
+                            String message = responseObj.get("message").getAsString();
+                            if (message.contains("Vaisseau indisponible") || message.contains("prochaine disponibilité")) {
+                                // Extraire le temps de cooldown
+                                String cooldownTime = message.substring(message.lastIndexOf(":") - 5);
+                                startCooldownTimer(cooldownTime);
+                            }
+                        }
+                    } catch (Exception e) {
+                        // Erreur de parsing, ignorer
+                    }
+                }
+            } catch (Exception e) {
+                // Erreur lors de la requête de suivi, ignorer
+            }
+        }).start();
+    }
+
+    private void startCooldownTimer(String timeString) {
+        Platform.runLater(() -> {
+            if (cooldownLabel == null) return;
+
+            // Arrêter le timer existant s'il y en a un
+            if (cooldownTimer != null) {
+                cooldownTimer.stop();
+            }
+
+            // Parser l'heure de fin (HH:MM:SS) - c'est une heure absolue, pas une durée
+            String[] parts = timeString.split(":");
+            int endHours = Integer.parseInt(parts[0]);
+            int endMinutes = Integer.parseInt(parts[1]);
+            int endSeconds = Integer.parseInt(parts[2]);
+
+            // Stocker l'heure de fin pour ce vaisseau
+            java.time.LocalTime endTime = java.time.LocalTime.of(endHours, endMinutes, endSeconds);
+            if (currentVaisseauId != null) {
+                shipCooldowns.put(currentVaisseauId, endTime);
+            }
+
+            // Calculer l'heure actuelle
+            java.time.LocalTime now = java.time.LocalTime.now();
+            int nowHours = now.getHour();
+            int nowMinutes = now.getMinute();
+            int nowSeconds = now.getSecond();
+
+            // Calculer la différence en secondes
+            int endTotalSeconds = endHours * 3600 + endMinutes * 60 + endSeconds;
+            int nowTotalSeconds = nowHours * 3600 + nowMinutes * 60 + nowSeconds;
+            final int[] remainingSeconds = {endTotalSeconds - nowTotalSeconds};
+
+            // Si le temps est négatif, c'est que l'heure de fin est le lendemain
+            if (remainingSeconds[0] < 0) {
+                remainingSeconds[0] += 24 * 3600;
+            }
+
+            // Afficher le label
+            cooldownLabel.setVisible(true);
+            cooldownLabel.setText("Cooldown: " + formatTime(remainingSeconds[0]));
+
+            // Créer un timer qui se déclenche toutes les secondes
+            cooldownTimer = new javafx.animation.Timeline(
+                new javafx.animation.KeyFrame(javafx.util.Duration.seconds(1), e -> {
+                    remainingSeconds[0]--;
+                    if (remainingSeconds[0] <= 0) {
+                        cooldownLabel.setText("Disponible !");
+                        cooldownLabel.setStyle("-fx-text-fill: #00FF00; -fx-font-size: 12px; -fx-font-weight: bold; -fx-padding: 10 0 0 0;");
+                        // Retirer le cooldown de la map
+                        if (currentVaisseauId != null) {
+                            shipCooldowns.remove(currentVaisseauId);
+                        }
+                        cooldownTimer.stop();
+                    } else {
+                        cooldownLabel.setText("Cooldown: " + formatTime(remainingSeconds[0]));
+                    }
+                })
+            );
+            cooldownTimer.setCycleCount(javafx.animation.Animation.INDEFINITE);
+            cooldownTimer.play();
+        });
+    }
+
+    private String formatTime(int totalSeconds) {
+        int hours = totalSeconds / 3600;
+        int minutes = (totalSeconds % 3600) / 60;
+        int seconds = totalSeconds % 60;
+        return String.format("%02d:%02d:%02d", hours, minutes, seconds);
     }
 
     private void executeRepairAction(String idVaisseau) {
@@ -824,6 +1005,7 @@ public class GameView extends Application {
 
             // Identifiant
             String id = vaisseau.has("idVaisseau") ? vaisseau.get("idVaisseau").getAsString() : "N/A";
+            currentVaisseauId = id;
             Label idLabel = new Label("ID: " + id);
             idLabel.setStyle("-fx-text-fill: white; -fx-font-size: 10px;");
             idLabel.setWrapText(true);
@@ -963,6 +1145,29 @@ public class GameView extends Application {
                 actionsBox3.getChildren().addAll(btnConquer, btnRepair);
 
                 vaisseauPanel.getChildren().addAll(actionsBox1, actionsBox2, actionsBox3);
+
+                // Label de cooldown
+                cooldownLabel = new Label("");
+                cooldownLabel.setStyle("-fx-text-fill: #FFD700; -fx-font-size: 12px; -fx-font-weight: bold; -fx-padding: 10 0 0 0;");
+                cooldownLabel.setVisible(false);
+                vaisseauPanel.getChildren().add(cooldownLabel);
+
+                // Vérifier s'il y a un cooldown actif pour ce vaisseau
+                if (shipCooldowns.containsKey(id)) {
+                    java.time.LocalTime endTime = shipCooldowns.get(id);
+                    java.time.LocalTime now = java.time.LocalTime.now();
+
+                    // Vérifier si le cooldown n'est pas expiré
+                    if (endTime.isAfter(now)) {
+                        // Reformater l'heure de fin et démarrer le timer
+                        String timeString = String.format("%02d:%02d:%02d",
+                            endTime.getHour(), endTime.getMinute(), endTime.getSecond());
+                        startCooldownTimer(timeString);
+                    } else {
+                        // Cooldown expiré, le retirer
+                        shipCooldowns.remove(id);
+                    }
+                }
             }
 
             // Bouton pour revenir à la liste des vaisseaux
