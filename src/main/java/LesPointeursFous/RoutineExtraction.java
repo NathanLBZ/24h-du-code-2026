@@ -21,7 +21,7 @@ public class RoutineExtraction {
     
         if (pvPlanete > 0) {
             System.out.println("Début de l'attaque. PV de départ : " + pvPlanete);
-            String pathAttaque = "/equipes/" + idEquipe + "/vaisseaux/" + idVaisseau + "/demander-action";
+            String pathAttaque = "equipes/" + idEquipe + "/vaisseaux/" + idVaisseau + "/demander-action";
             String jsonBody = String.format("{\"action\": \"ATTAQUER\", \"coord_x\": %d, \"coord_y\": %d}", x, y);
     
             while (pvPlanete > 0) {
