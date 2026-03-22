@@ -28,13 +28,24 @@ public class App
         
         String idEquipe = "c1b647f1-1748-492a-b5a9-2a9af9b5e5ed";
 
-        String vaisseaux[] = {"df37b158-2858-4139-8a83-6b47826892f4", "4b69ac2b-49e9-49cf-bac2-cc5b6539195f"};
-        String cargots[] = {"df37b158-2858-4139-8a83-6b47826892f4", "4b69ac2b-49e9-49cf-bac2-cc5b6539195f"};
-        RoutineExtraction REs[] = new RoutineExtraction[1];
-        REs[0] = new RoutineExtraction(vaisseau);
-        REs[0].setDepot(34, 42);
+        String vaisseaux[] = {"df37b158-2858-4139-8a83-6b47826892f4", "4b69ac2b-49e9-49cf-bac2-cc5b6539195f", "9b245656-5fee-4919-820b-a39b745464d6", "4680516c-cdce-487d-8dad-11d10c3075b6", "dae26621-d052-4699-a09a-beeff4678fe9", "f13a860b-fbe6-4040-9bc6-6a2b68ec3f39", "161ff5db-b1a7-47af-a2c0-1ba3303b5ec6"};
+        String cargots[] = {"df37b158-2858-4139-8a83-6b47826892f4", "4b69ac2b-49e9-49cf-bac2-cc5b6539195f", "9b245656-5fee-4919-820b-a39b745464d6", "4680516c-cdce-487d-8dad-11d10c3075b6", "dae26621-d052-4699-a09a-beeff4678fe9", "f13a860b-fbe6-4040-9bc6-6a2b68ec3f39", "161ff5db-b1a7-47af-a2c0-1ba3303b5ec6"};
+        int nbCargots = 8;
+        RoutineExtraction REs[] = new RoutineExtraction[nbCargots];
+        for (int i = 0; i < nbCargots; i++){
+            REs[i] = new RoutineExtraction(vaisseau);
+            REs[i].setDepot(34, 42);
+        }
         REs[0].setPlanete(34, 42);
-        int nbCargots = 1;
+        REs[1].setPlanete(30, 40);
+        REs[1].addAller(32, 40);
+        REs[1].addAller(33, 40);
+        REs[1].addAller(34, 41);
+        REs[1].addAller(34, 42);
+        REs[1].addRetour(34, 41);
+        REs[1].addRetour(33, 40);
+        REs[1].addRetour(32, 40);
+        REs[1].addRetour(31, 40);
 
         Scanner scanner = new Scanner(System.in);
         Gson gson = new Gson();
