@@ -18,6 +18,7 @@ import LesPointeursFous.services.ApiClient;
 import LesPointeursFous.services.ApiMap;
 import LesPointeursFous.services.ApiVaisseau;
 import LesPointeursFous.services.ApiModule;
+import LesPointeursFous.services.ApiEquipe;
 import io.github.cdimascio.dotenv.Dotenv;
 
 import java.io.FileInputStream;
@@ -43,6 +44,7 @@ public class GameView extends Application {
     private ApiMap apiMap;
     private ApiVaisseau apiVaisseau;
     private ApiModule apiModule;
+    private ApiEquipe apiEquipe;
     private String idEquipe;
     private Label cooldownLabel;
     private javafx.animation.Timeline cooldownTimer;
@@ -79,6 +81,7 @@ public class GameView extends Application {
         apiMap = new ApiMap(apiClient);
         apiVaisseau = new ApiVaisseau(apiClient);
         apiModule = new ApiModule(apiClient);
+        apiEquipe = new ApiEquipe(apiClient);
         idEquipe = "c1b647f1-1748-492a-b5a9-2a9af9b5e5ed";
 
         // Charger les IDs des vaisseaux et planètes alliés
@@ -97,16 +100,58 @@ public class GameView extends Application {
         vaisseauxList = new VBox(10);
         vaisseauxList.setPadding(new Insets(10));
         vaisseauxList.setStyle("-fx-background-color: #2b2b2b;");
-        vaisseauxList.setPrefWidth(300);
 
         Label title = new Label("VOS VAISSEAUX");
         title.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
         vaisseauxList.getChildren().add(title);
 
         // Panneau de vaisseaux avec scroll
-        ScrollPane scrollPane = new ScrollPane(vaisseauxList);
-        scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background: #2b2b2b;");
+        ScrollPane vaisseauxScroll = new ScrollPane(vaisseauxList);
+        vaisseauxScroll.setFitToWidth(true);
+        vaisseauxScroll.setStyle("-fx-background: #2b2b2b;");
+
+        // Créer le panneau de scoreboard
+        VBox scoreboardList = new VBox(10);
+        scoreboardList.setPadding(new Insets(10));
+        scoreboardList.setStyle("-fx-background-color: #2b2b2b;");
+
+        ScrollPane scoreboardScroll = new ScrollPane(scoreboardList);
+        scoreboardScroll.setFitToWidth(true);
+        scoreboardScroll.setStyle("-fx-background: #2b2b2b;");
+
+        // Créer le panneau de construction
+        VBox constructionList = new VBox(10);
+        constructionList.setPadding(new Insets(10));
+        constructionList.setStyle("-fx-background-color: #2b2b2b;");
+
+        ScrollPane constructionScroll = new ScrollPane(constructionList);
+        constructionScroll.setFitToWidth(true);
+        constructionScroll.setStyle("-fx-background: #2b2b2b;");
+
+        // Créer les onglets
+        TabPane tabPane = new TabPane();
+        tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        tabPane.setPrefWidth(300);
+
+        Tab vaisseauxTab = new Tab("Vaisseaux", vaisseauxScroll);
+        Tab constructionTab = new Tab("Construction", constructionScroll);
+        Tab scoreboardTab = new Tab("Scoreboard", scoreboardScroll);
+
+        tabPane.getTabs().addAll(vaisseauxTab, constructionTab, scoreboardTab);
+
+        // Charger la construction quand l'onglet est sélectionné
+        constructionTab.setOnSelectionChanged(e -> {
+            if (constructionTab.isSelected()) {
+                loadConstruction(constructionList);
+            }
+        });
+
+        // Charger le scoreboard quand l'onglet est sélectionné
+        scoreboardTab.setOnSelectionChanged(e -> {
+            if (scoreboardTab.isSelected()) {
+                loadScoreboard(scoreboardList);
+            }
+        });
 
         // Mettre le canvas dans un ScrollPane pour permettre le défilement
         ScrollPane canvasScroll = new ScrollPane(canvas);
@@ -125,7 +170,7 @@ public class GameView extends Application {
 
         // Layout principal
         HBox root = new HBox();
-        root.getChildren().addAll(canvasScroll, scrollPane);
+        root.getChildren().addAll(canvasScroll, tabPane);
 
         Scene scene = new Scene(root);
 
@@ -1184,6 +1229,269 @@ public class GameView extends Application {
             (int) (color.getRed() * 255),
             (int) (color.getGreen() * 255),
             (int) (color.getBlue() * 255));
+    }
+
+    private void loadConstruction(VBox constructionList) {
+        new Thread(() -> {
+            try {
+                System.out.println("=== CHARGEMENT CONSTRUCTION ===");
+                String modulesJson = apiModule.listerModules(idEquipe);
+                System.out.println("Modules JSON: " + modulesJson);
+                JsonArray modules = gson.fromJson(modulesJson, JsonArray.class);
+                System.out.println("Nombre de modules: " + modules.size());
+
+                Platform.runLater(() -> {
+                    constructionList.getChildren().clear();
+
+                    Label title = new Label("CONSTRUCTION");
+                    title.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
+                    constructionList.getChildren().add(title);
+
+                    boolean hasConstructionModule = false;
+
+                    // Parcourir les modules pour trouver ceux de construction posés
+                    for (int i = 0; i < modules.size(); i++) {
+                        JsonObject module = modules.get(i).getAsJsonObject();
+
+                        // Vérifier si le module est posé sur une planète
+                        if (!module.has("idPlanete") || module.get("idPlanete").isJsonNull()) {
+                            continue;
+                        }
+
+                        // Vérifier si c'est un module de construction
+                        if (!module.has("paramModule") || module.get("paramModule").isJsonNull()) {
+                            continue;
+                        }
+
+                        JsonObject paramModule = module.get("paramModule").getAsJsonObject();
+                        if (!paramModule.has("typeModule") ||
+                            !paramModule.get("typeModule").getAsString().equals("CONSTRUCTION_VAISSEAUX")) {
+                            continue;
+                        }
+
+                        hasConstructionModule = true;
+
+                        String idPlanete = module.get("idPlanete").getAsString();
+                        String moduleId = module.get("id").getAsString();
+
+                        System.out.println("Module de construction trouvé:");
+                        System.out.println("  ID Planète: " + idPlanete);
+                        System.out.println("  Param Module: " + paramModule.toString());
+
+                        // Récupérer la liste des vaisseaux constructibles
+                        JsonArray vaisseauxConstructibles = paramModule.has("listeVaisseauxConstructible") ?
+                            paramModule.get("listeVaisseauxConstructible").getAsJsonArray() : new JsonArray();
+
+                        System.out.println("  Vaisseaux constructibles: " + vaisseauxConstructibles.size());
+                        for (int k = 0; k < vaisseauxConstructibles.size(); k++) {
+                            System.out.println("    - " + vaisseauxConstructibles.get(k).toString());
+                        }
+
+                        // Créer un panneau pour ce module de construction
+                        VBox modulePanel = new VBox(5);
+                        modulePanel.setPadding(new Insets(10));
+                        modulePanel.setStyle("-fx-background-color: #3a3a3a; -fx-border-color: #5a5a5a; -fx-border-width: 1;");
+
+                        Label planetLabel = new Label("Chantier spatial");
+                        planetLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+
+                        Label idLabel = new Label("Planète: " + idPlanete.substring(0, 8) + "...");
+                        idLabel.setStyle("-fx-text-fill: lightgray; -fx-font-size: 10px;");
+
+                        modulePanel.getChildren().addAll(planetLabel, idLabel);
+
+                        // Ajouter les types de vaisseaux constructibles
+                        if (vaisseauxConstructibles.size() > 0) {
+                            Label shipsTitle = new Label("\nVaisseaux disponibles:");
+                            shipsTitle.setStyle("-fx-text-fill: white; -fx-font-size: 11px;");
+                            modulePanel.getChildren().add(shipsTitle);
+
+                            for (int j = 0; j < vaisseauxConstructibles.size(); j++) {
+                                JsonObject shipType = vaisseauxConstructibles.get(j).getAsJsonObject();
+                                String idTypeVaisseau = shipType.get("id").getAsString();
+                                String classeVaisseau = shipType.has("classeVaisseau") ?
+                                    shipType.get("classeVaisseau").getAsString() : "Vaisseau";
+
+                                // Formater le nom de la classe
+                                String temp = classeVaisseau.replace("_", " ").toLowerCase();
+                                final String displayName = temp.substring(0, 1).toUpperCase() + temp.substring(1);
+
+                                Button buildBtn = new Button("Construire " + displayName);
+                                buildBtn.setStyle("-fx-background-color: #4a4a4a; -fx-text-fill: white; -fx-font-size: 10px;");
+                                buildBtn.setOnAction(e -> showBuildShipDialog(idTypeVaisseau, idPlanete, displayName));
+
+                                modulePanel.getChildren().add(buildBtn);
+                            }
+                        } else {
+                            Label noShipsLabel = new Label("Aucun vaisseau disponible");
+                            noShipsLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
+                            modulePanel.getChildren().add(noShipsLabel);
+                        }
+
+                        constructionList.getChildren().add(modulePanel);
+                    }
+
+                    if (!hasConstructionModule) {
+                        Label noModuleLabel = new Label("\nAucun module de construction posé.\n\nPosez un module de construction\nsur une planète pour pouvoir\nconstruire des vaisseaux.");
+                        noModuleLabel.setStyle("-fx-text-fill: gray; -fx-font-size: 12px;");
+                        constructionList.getChildren().add(noModuleLabel);
+                    }
+                });
+
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    constructionList.getChildren().clear();
+                    Label errorLabel = new Label("Erreur lors du chargement");
+                    errorLabel.setStyle("-fx-text-fill: red;");
+                    constructionList.getChildren().add(errorLabel);
+                });
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    private void showBuildShipDialog(String idTypeVaisseau, String idPlanete, String shipTypeName) {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Construire un vaisseau");
+        dialog.setHeaderText("Construction: " + shipTypeName);
+        dialog.setContentText("Nom du vaisseau:");
+
+        dialog.showAndWait().ifPresent(nom -> {
+            if (nom != null && !nom.trim().isEmpty()) {
+                executeBuildShip(idTypeVaisseau, idPlanete, nom.trim());
+            }
+        });
+    }
+
+    private void executeBuildShip(String idTypeVaisseau, String idPlanete, String nom) {
+        new Thread(() -> {
+            try {
+                String result = apiVaisseau.construireVaisseau(idEquipe, idTypeVaisseau, idPlanete, nom);
+
+                // Vérifier si c'est une erreur
+                if (result != null && !result.isEmpty()) {
+                    try {
+                        JsonObject responseObj = gson.fromJson(result, JsonObject.class);
+                        if (responseObj.has("code") && responseObj.get("code").getAsString().equals("-1")) {
+                            String errorMessage = responseObj.has("message") ?
+                                responseObj.get("message").getAsString() : "Erreur inconnue";
+                            throw new Exception(errorMessage);
+                        }
+                    } catch (com.google.gson.JsonSyntaxException e) {
+                        // Pas JSON, probablement un succès
+                    }
+                }
+
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("Succès");
+                    alert.setContentText("Vaisseau '" + nom + "' en construction !");
+                    alert.showAndWait();
+                    loadVaisseauxPanel();
+                });
+
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Erreur");
+                    alert.setContentText("Erreur: " + e.getMessage());
+                    alert.showAndWait();
+                });
+            }
+        }).start();
+    }
+
+    private void loadScoreboard(VBox scoreboardList) {
+        new Thread(() -> {
+            try {
+                System.out.println("=== CHARGEMENT SCOREBOARD ===");
+                String equipesJson = apiEquipe.getAllEquipes();
+                System.out.println("Réponse API: " + equipesJson);
+                JsonArray equipes = gson.fromJson(equipesJson, JsonArray.class);
+                System.out.println("Nombre d'équipes: " + equipes.size());
+
+                // Calculer le score pour chaque équipe
+                java.util.List<JsonObject> teamScores = new java.util.ArrayList<>();
+                for (int i = 0; i < equipes.size(); i++) {
+                    JsonObject equipe = equipes.get(i).getAsJsonObject();
+                    teamScores.add(equipe);
+                }
+
+                // Trier par score de l'API
+                teamScores.sort((a, b) -> {
+                    int scoreA = a.has("score") ? a.get("score").getAsInt() : 0;
+                    int scoreB = b.has("score") ? b.get("score").getAsInt() : 0;
+                    return Integer.compare(scoreB, scoreA);
+                });
+
+                Platform.runLater(() -> {
+                    scoreboardList.getChildren().clear();
+
+                    Label title = new Label("SCOREBOARD");
+                    title.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
+                    scoreboardList.getChildren().add(title);
+
+                    // Afficher chaque équipe
+                    for (int rank = 0; rank < teamScores.size(); rank++) {
+                        JsonObject equipe = teamScores.get(rank);
+                        String nom = equipe.has("nom") ? equipe.get("nom").getAsString() : "Équipe inconnue";
+                        String teamId = equipe.has("idEquipe") ? equipe.get("idEquipe").getAsString() : "";
+                        int score = equipe.has("score") ? equipe.get("score").getAsInt() : 0;
+
+                        // Récupérer la monnaie (minerai)
+                        int minerai = 0;
+                        if (equipe.has("ressources") && equipe.get("ressources").isJsonArray()) {
+                            JsonArray ressources = equipe.get("ressources").getAsJsonArray();
+                            for (int i = 0; i < ressources.size(); i++) {
+                                JsonObject res = ressources.get(i).getAsJsonObject();
+                                if (res.has("quantite")) {
+                                    minerai += res.get("quantite").getAsInt();
+                                }
+                            }
+                        }
+
+                        // Créer le panneau de l'équipe
+                        VBox teamPanel = new VBox(3);
+                        teamPanel.setPadding(new Insets(8));
+
+                        // Couleur spéciale pour notre équipe
+                        boolean isOurTeam = teamId.equals(idEquipe);
+                        String bgColor = isOurTeam ? "#3a5a3a" : "#3a3a3a";
+                        teamPanel.setStyle("-fx-background-color: " + bgColor + "; -fx-border-color: #5a5a5a; -fx-border-width: 1;");
+
+                        // Rang et nom
+                        String medal = "";
+                        if (rank == 0) medal = "🥇 ";
+                        else if (rank == 1) medal = "🥈 ";
+                        else if (rank == 2) medal = "🥉 ";
+
+                        Label rankLabel = new Label(medal + "#" + (rank + 1) + " - " + nom + (isOurTeam ? " (VOUS)" : ""));
+                        rankLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 13px;");
+
+                        // Score
+                        Label scoreLabel = new Label("Score: " + score);
+                        scoreLabel.setStyle("-fx-text-fill: #FFD700; -fx-font-size: 12px; -fx-font-weight: bold;");
+
+                        // Monnaie
+                        Label moneyLabel = new Label("Minerai: " + minerai);
+                        moneyLabel.setStyle("-fx-text-fill: #90EE90; -fx-font-size: 11px;");
+
+                        teamPanel.getChildren().addAll(rankLabel, scoreLabel, moneyLabel);
+                        scoreboardList.getChildren().add(teamPanel);
+                    }
+                });
+
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    scoreboardList.getChildren().clear();
+                    Label errorLabel = new Label("Erreur lors du chargement\n" + e.getMessage());
+                    errorLabel.setStyle("-fx-text-fill: red;");
+                    scoreboardList.getChildren().add(errorLabel);
+                });
+                System.err.println("Erreur scoreboard: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }).start();
     }
 
     private void loadVaisseauImages() {
