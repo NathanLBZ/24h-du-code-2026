@@ -57,6 +57,10 @@ public class GameView extends Application {
     private static final long SCOREBOARD_CACHE_DURATION = 120000; // 120 secondes
     private static final long CONSTRUCTION_CACHE_DURATION = 10000; // 10 secondes
 
+    // Cache pour la carte
+    private JsonArray cachedMapData = null;
+    private boolean isLoadingMap = false;
+
     // Palette de couleurs pour les équipes
     private Color[] colorPalette = {
         Color.CYAN,
@@ -1576,43 +1580,64 @@ public class GameView extends Application {
     }
 
     private void drawMap() {
-        try {
-            // Recharger les assets alliés à chaque rafraîchissement
-            loadAlliedAssets();
+        // Charger les données en arrière-plan si pas déjà en cours
+        if (!isLoadingMap) {
+            isLoadingMap = true;
+            new Thread(() -> {
+                try {
+                    // Récupérer les données de la carte en plusieurs requêtes (limite 18x18)
+                    JsonArray allCases = new JsonArray();
 
-            // Fond noir
-            gc.setFill(Color.BLACK);
-            gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
+                    // Découper la carte en tuiles de 18x18
+                    for (int tileY = yMin; tileY <= yMax; tileY += (MAX_RANGE + 1)) {
+                        for (int tileX = xMin; tileX <= xMax; tileX += (MAX_RANGE + 1)) {
+                            int currentXMin = tileX;
+                            int currentXMax = Math.min(tileX + MAX_RANGE, xMax);
+                            int currentYMin = tileY;
+                            int currentYMax = Math.min(tileY + MAX_RANGE, yMax);
 
-            // Récupérer les données de la carte en plusieurs requêtes (limite 18x18)
-            JsonArray allCases = new JsonArray();
+                            // Requête pour cette tuile
+                            String tileJson = apiMap.getMap(currentXMin, currentXMax, currentYMin, currentYMax);
+                            JsonArray tileCases = gson.fromJson(tileJson, JsonArray.class);
 
-            // Découper la carte en tuiles de 18x18
-            for (int tileY = yMin; tileY <= yMax; tileY += (MAX_RANGE + 1)) {
-                for (int tileX = xMin; tileX <= xMax; tileX += (MAX_RANGE + 1)) {
-                    int currentXMin = tileX;
-                    int currentXMax = Math.min(tileX + MAX_RANGE, xMax);
-                    int currentYMin = tileY;
-                    int currentYMax = Math.min(tileY + MAX_RANGE, yMax);
-
-                    // Requête pour cette tuile
-                    String tileJson = apiMap.getMap(currentXMin, currentXMax, currentYMin, currentYMax);
-                    JsonArray tileCases = gson.fromJson(tileJson, JsonArray.class);
-
-                    if (tileCases != null) {
-                        // Ajouter toutes les cases de cette tuile
-                        for (int i = 0; i < tileCases.size(); i++) {
-                            allCases.add(tileCases.get(i));
+                            if (tileCases != null) {
+                                for (int i = 0; i < tileCases.size(); i++) {
+                                    allCases.add(tileCases.get(i));
+                                }
+                            }
                         }
                     }
+
+                    // Mettre en cache et redessiner sur le thread UI
+                    cachedMapData = allCases;
+                    Platform.runLater(() -> {
+                        renderMap(cachedMapData);
+                        isLoadingMap = false;
+                    });
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    isLoadingMap = false;
                 }
-            }
+            }).start();
+        } else if (cachedMapData != null) {
+            // Utiliser les données en cache pour redessiner immédiatement
+            renderMap(cachedMapData);
+        }
+    }
 
-            JsonArray cases = allCases;
-            if (cases == null || cases.size() == 0) return;
+    private void renderMap(JsonArray cases) {
+        if (cases == null || cases.size() == 0) return;
 
-            // Stocker les cases pour pouvoir les utiliser lors des clics
-            this.currentMapCases = cases;
+        // Recharger les assets alliés
+        loadAlliedAssets();
+
+        // Stocker les cases pour pouvoir les utiliser lors des clics
+        this.currentMapCases = cases;
+
+        // Fond noir
+        gc.setFill(Color.BLACK);
+        gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
 
 
             // Dessiner les coordonnées sur les axes
@@ -1673,15 +1698,10 @@ public class GameView extends Application {
                 }
             }
 
-            // Afficher la légende après le premier chargement
-            if (firstLoad && !equipeColors.isEmpty()) {
-                // printLegend(); // Désactivé pour réduire les logs
-                firstLoad = false;
-            }
-
-        } catch (Exception e) {
-            System.err.println("Erreur lors du dessin de la carte: " + e.getMessage());
-            e.printStackTrace();
+        // Afficher la légende après le premier chargement
+        if (firstLoad && !equipeColors.isEmpty()) {
+            // printLegend(); // Désactivé pour réduire les logs
+            firstLoad = false;
         }
     }
 

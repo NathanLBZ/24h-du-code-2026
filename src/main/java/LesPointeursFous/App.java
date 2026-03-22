@@ -47,6 +47,17 @@ public class App
         REs[1].addRetour(32, 40);
         REs[1].addRetour(31, 40);
 
+        REs[3].setPlanete(33, 36);
+        REs[3].addAller(33, 37);
+        REs[3].addAller(33, 38);
+        REs[3].addAller(33, 39);
+        REs[3].addAller(33, 40);
+        REs[3].addAller(33, 41);
+        REs[3].addRetour(33, 40);
+        REs[3].addRetour(33, 39);
+        REs[3].addRetour(33, 38);
+        REs[3].addRetour(33, 37);
+
         Scanner scanner = new Scanner(System.in);
         Gson gson = new Gson();
 
