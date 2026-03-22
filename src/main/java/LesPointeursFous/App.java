@@ -28,7 +28,13 @@ public class App
         
         String idEquipe = "c1b647f1-1748-492a-b5a9-2a9af9b5e5ed";
 
-        String vaisseaux[] = {"72a610ba-93b1-4967-ba13-567b3806d1e0"};
+        String vaisseaux[] = {"df37b158-2858-4139-8a83-6b47826892f4", "4b69ac2b-49e9-49cf-bac2-cc5b6539195f"};
+        String cargots[] = {"df37b158-2858-4139-8a83-6b47826892f4", "4b69ac2b-49e9-49cf-bac2-cc5b6539195f"};
+        RoutineExtraction REs[] = new RoutineExtraction[1];
+        REs[0] = new RoutineExtraction(vaisseau);
+        REs[0].setDepot(34, 42);
+        REs[0].setPlanete(34, 42);
+        int nbCargots = 1;
 
         Scanner scanner = new Scanner(System.in);
         Gson gson = new Gson();
@@ -36,11 +42,12 @@ public class App
         System.out.print("Quel gamestyle ? (0:classique, 1:automatique, 2:API market)");
         int gamestyle = Integer.valueOf(scanner.nextLine());
 
-        if (gamestyle == 1){
-            RoutineExtraction RE = new RoutineExtraction(vaisseau);
-            RE.setDepot(32, 24);
-            RE.setPlanete(34, 24);
-            RE.call(idEquipe, vaisseaux[0]);
+        if (gamestyle == 1){            
+            while(true){
+                for (int i = 0; i < nbCargots; i++){
+                    REs[0].call(idEquipe, vaisseaux[0]);
+                }
+            }
 
         }else if (gamestyle == 2){
             ApiMarket AM = new ApiMarket(apiFetch);

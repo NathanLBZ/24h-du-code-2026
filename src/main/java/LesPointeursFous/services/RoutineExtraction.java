@@ -8,6 +8,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+import java.time.Instant;
 import java.util.ArrayList;
 
 public class RoutineExtraction {
@@ -46,132 +47,134 @@ public class RoutineExtraction {
         this.deplacementsRetour.add(y);
     }
 
-    public void call(String idEquipe, String vaisseauId) throws Exception{
-
-        boolean arrive = false;
-        while (!arrive) {
+    private JsonObject attendreDisponible(String idEquipe, String vaisseauId) throws Exception {
+        while (true) {
             String json = vaisseau.getVaisseaux(idEquipe);
             JsonArray vaisseauxArray = new Gson().fromJson(json, JsonArray.class);
             JsonObject v = null;
+
             for (int i = 0; i < vaisseauxArray.size(); i++) {
-                if (vaisseauxArray.get(i).getAsJsonObject().get("idVaisseau").getAsString().equals(vaisseauId)) {
-                    v = vaisseauxArray.get(i).getAsJsonObject();
+                JsonObject obj = vaisseauxArray.get(i).getAsJsonObject();
+                if (obj.get("idVaisseau").getAsString().equals(vaisseauId)) {
+                    v = obj;
                     break;
                 }
             }
 
             if (v == null) throw new Exception("Vaisseau non trouvé");
 
-            // Vérifier si le vaisseau a des ressources
-            int cargaison = v.has("cargaison") ? v.get("cargaison").getAsInt() : 0;
-
-            if (cargaison > 0) {
-                arrive = true; // La récolte est terminée, le vaisseau a des ressources
-            } else {
-                System.out.println("Récolte en cours...");
-                Thread.sleep(1000); // attendre 1 seconde avant de re-vérifier
-            }
-        }
-
-        // ----------------------------------------
-
-        int index = 0;
-        while (index < this.deplacementsAller.size()){
-            int xDest = this.deplacementsAller.get(index);
-            int yDest = this.deplacementsAller.get(index+1);
-
-            arrive = false;
-            while (!arrive) {
-                String json = vaisseau.getVaisseaux(idEquipe);
-                JsonArray vaisseauxArray = new Gson().fromJson(json, JsonArray.class);
-                JsonObject v = null;
-                for (int i = 0; i < vaisseauxArray.size(); i++) {
-                    if (vaisseauxArray.get(i).getAsJsonObject().get("idVaisseau").getAsString().equals(vaisseauId)) {
-                        v = vaisseauxArray.get(i).getAsJsonObject();
-                        break;
-                    }
-                }
-
-                if (v == null) throw new Exception("Vaisseau non trouvé");
-
-                int xActuel = v.has("positionX") ? v.get("positionX").getAsInt() :
-                            (v.has("coord_x") ? v.get("coord_x").getAsInt() : 0);
-                int yActuel = v.has("positionY") ? v.get("positionY").getAsInt() :
-                            (v.has("coord_y") ? v.get("coord_y").getAsInt() : 0);
-
-                if (xActuel == xDest && yActuel == yDest) {
-                    arrive = true; // Le vaisseau est arrivé
+            System.out.println(v);
+            if (v.has("dateProchaineAction")) {
+                Instant dispo = Instant.parse(v.get("dateProchaineAction").getAsString());
+                Instant now = Instant.now();
+                if (dispo.isBefore(now)) {
+                    return v; // prêt !
                 } else {
-                    System.out.println("Vaisseau en déplacement... position actuelle: (" + xActuel + ", " + yActuel + ")");
-                    Thread.sleep(1000); // attendre 1 seconde avant de re-vérifier
+                    long attenteMs = dispo.toEpochMilli() - now.toEpochMilli() + 500;
+                    System.out.println("Vaisseau pas prêt, attente " + (attenteMs / 1000) + "s...");
+                    Thread.sleep(Math.max(attenteMs, 1000));
                 }
-            }
-            index += 2;
-        }
-
-        // -----------------------------
-
-        arrive = false;
-        while (!arrive) {
-            String json = vaisseau.getVaisseaux(idEquipe);
-            JsonArray vaisseauxArray = new Gson().fromJson(json, JsonArray.class);
-            JsonObject v = null;
-            for (int i = 0; i < vaisseauxArray.size(); i++) {
-                if (vaisseauxArray.get(i).getAsJsonObject().get("id").getAsString().equals(vaisseauId)) {
-                    v = vaisseauxArray.get(i).getAsJsonObject();
-                    break;
-                }
-            }
-
-            if (v == null) throw new Exception("Vaisseau non trouvé");
-
-            int cargaison = v.has("cargaison") ? v.get("cargaison").getAsInt() : 0;
-
-            if (cargaison == 0) {
-                arrive = true; // Le vaisseau a tout déposé
             } else {
-                System.out.println("Dépot en cours...");
-                Thread.sleep(1000); // attendre 1 seconde avant de re-vérifier
+                System.out.println("\n\nzeioijhfgjklhg\n\n");
+                return v; // pas de champ, on considère prêt
             }
-        }
-
-        // -------------------------------------------------------
-
-        index = 0;
-        while (index < this.deplacementsRetour.size()){
-            int xDest = this.deplacementsRetour.get(index);
-            int yDest = this.deplacementsRetour.get(index+1);
-
-            arrive = false;
-            while (!arrive) {
-                String json = vaisseau.getVaisseaux(idEquipe);
-                JsonArray vaisseauxArray = new Gson().fromJson(json, JsonArray.class);
-                JsonObject v = null;
-                for (int i = 0; i < vaisseauxArray.size(); i++) {
-                    if (vaisseauxArray.get(i).getAsJsonObject().get("id").getAsString().equals(vaisseauId)) {
-                        v = vaisseauxArray.get(i).getAsJsonObject();
-                        break;
-                    }
-                }
-
-                if (v == null) throw new Exception("Vaisseau non trouvé");
-
-                int xActuel = v.has("positionX") ? v.get("positionX").getAsInt() :
-                            (v.has("coord_x") ? v.get("coord_x").getAsInt() : 0);
-                int yActuel = v.has("positionY") ? v.get("positionY").getAsInt() :
-                            (v.has("coord_y") ? v.get("coord_y").getAsInt() : 0);
-
-                if (xActuel == xDest && yActuel == yDest) {
-                    arrive = true; // Le vaisseau est arrivé
-                } else {
-                    System.out.println("Vaisseau en déplacement... position actuelle: (" + xActuel + ", " + yActuel + ")");
-                    Thread.sleep(1000); // attendre 1 seconde avant de re-vérifier
-                }
-            }
-            index += 2;
         }
     }
-    
+
+    public void call(String idEquipe, String vaisseauId) throws Exception {
+
+    // -------------------------
+    // 1️⃣ Récolte sur la planète
+    // -------------------------
+    boolean arrive = false;
+    while (!arrive) {
+        JsonObject v = attendreDisponible(idEquipe, vaisseauId);
+        vaisseau.recolter(idEquipe, vaisseauId, planete_x, planete_y);
+
+        int cargaison = v.has("mineraiTransporte") ? v.get("mineraiTransporte").getAsInt() : 0;
+        if (cargaison > 0) {
+            arrive = true;
+        } else {
+            System.out.println("Récolte en cours...");
+            Thread.sleep(1000);
+        }
+    }
+
+    // -------------------------
+    // 2️⃣ Déplacements Aller
+    // -------------------------
+    for (int index = 0; index < this.deplacementsAller.size(); index += 2) {
+        int xDest = this.deplacementsAller.get(index);
+        int yDest = this.deplacementsAller.get(index + 1);
+
+        boolean atteint = false;
+        while (!atteint) {
+            attendreDisponible(idEquipe, vaisseauId);
+            vaisseau.deplacer(idEquipe, vaisseauId, xDest, yDest);
+
+            JsonObject v = attendreDisponible(idEquipe, vaisseauId);
+            int xActuel = v.has("positionX") ? v.get("positionX").getAsInt() : 0;
+            int yActuel = v.has("positionY") ? v.get("positionY").getAsInt() : 0;
+
+            if (xActuel == xDest && yActuel == yDest) {
+                atteint = true;
+            } else {
+                System.out.println("Vaisseau en déplacement... position actuelle: (" + xActuel + ", " + yActuel + ")");
+                Thread.sleep(1000);
+            }
+        }
+    }
+
+    // Dépot
+        boolean depotTermine = false;
+        while (!depotTermine) {
+            // 1️⃣ Attendre que le vaisseau soit prêt
+            JsonObject v = attendreDisponible(idEquipe, vaisseauId);
+
+            // 2️⃣ Envoyer la requête de dépôt
+            
+            // 3️⃣ Boucle pour vérifier que la cargaison est bien vide
+            while (true) {
+                vaisseau.deposer(idEquipe, vaisseauId, depot_x, depot_y);
+                v = attendreDisponible(idEquipe, vaisseauId); // attendre fin de l'action
+                int cargaison = v.has("mineraiTransporte") ? v.get("mineraiTransporte").getAsInt() : 0;
+                if (cargaison == 0) {
+                    depotTermine = true;
+                    break;
+                } else {
+                    System.out.println("Dépot en cours... cargaison actuelle: " + cargaison);
+                    Thread.sleep(1000);
+                }
+            }
+        }
+
+    // -------------------------
+    // 4️⃣ Déplacements Retour
+    // -------------------------
+    for (int index = 0; index < this.deplacementsRetour.size(); index += 2) {
+        int xDest = this.deplacementsRetour.get(index);
+        int yDest = this.deplacementsRetour.get(index + 1);
+
+        boolean atteint = false;
+        while (!atteint) {
+            attendreDisponible(idEquipe, vaisseauId);
+            vaisseau.deplacer(idEquipe, vaisseauId, xDest, yDest);
+
+            JsonObject v = attendreDisponible(idEquipe, vaisseauId);
+            int xActuel = v.has("positionX") ? v.get("positionX").getAsInt() : 0;
+            int yActuel = v.has("positionY") ? v.get("positionY").getAsInt() : 0;
+
+            if (xActuel == xDest && yActuel == yDest) {
+                atteint = true;
+            } else {
+                System.out.println("Vaisseau en déplacement... position actuelle: (" + xActuel + ", " + yActuel + ")");
+                Thread.sleep(1000);
+            }
+        }
+    }
+
+    System.out.println("Routine terminée pour le vaisseau " + vaisseauId);
+}
 
     
 }
