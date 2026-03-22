@@ -71,6 +71,7 @@ public class App
         REs[3].addRetour(33, 39);
         REs[3].addRetour(33, 38);
         REs[3].addRetour(33, 37);
+
         REs[4].setPlanete(30, 36);
         REs[4].addAller(31, 38);
         REs[4].addAller(31, 39);
@@ -85,11 +86,14 @@ public class App
         REs[4].addRetour(32, 39);
         REs[4].addRetour(32, 38);
         REs[4].addRetour(31, 37);
-        REs[5].setPlanete(45, 42);
-        REs[5].addAller(36, 42);
-        REs[5].addAller(37, 42);
-        REs[5].addAller(38, 43);
 
+        REs[5].setPlanete(38, 42);
+        REs[5].addAller(36, 42);
+        REs[5].addAller(36, 43);
+        REs[5].addAller(35, 42);
+        REs[5].addRetour(36, 43);
+        REs[5].addRetour(36, 42);
+        REs[5].addRetour(37, 42);
 
 
 
