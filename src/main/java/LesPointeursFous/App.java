@@ -37,6 +37,7 @@ public class App
             REs[i].setDepot(34, 42);
         }
         REs[0].setPlanete(34, 42);
+
         REs[1].setPlanete(30, 40);
         REs[1].addAller(32, 40);
         REs[1].addAller(33, 40);
@@ -46,12 +47,20 @@ public class App
         REs[1].addRetour(33, 40);
         REs[1].addRetour(32, 40);
         REs[1].addRetour(31, 40);
-        REs[2].setPlanete(34, 37);
+
+        REs[2].setPlanete(30, 38);
+        REs[2].addAller(32, 38);
+        REs[2].addAller(33, 39);
         REs[2].addAller(34, 40);
         REs[2].addAller(34, 39);
-        REs[2].addAller(34, 38);
-        REs[2].addRetour(34, 39);
+        REs[2].addAller(34, 40);
+        REs[2].addAller(34, 41);
         REs[2].addRetour(34, 40);
+        REs[2].addRetour(33, 39);
+        REs[2].addRetour(32, 38);
+        REs[2].addRetour(31, 38);
+        
+
         REs[3].setPlanete(33, 36);
         REs[3].addAller(33, 37);
         REs[3].addAller(33, 38);
