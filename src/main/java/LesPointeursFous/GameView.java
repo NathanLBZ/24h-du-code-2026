@@ -17,6 +17,7 @@ import com.google.gson.JsonObject;
 import LesPointeursFous.services.ApiClient;
 import LesPointeursFous.services.ApiMap;
 import LesPointeursFous.services.ApiVaisseau;
+import LesPointeursFous.services.ApiModule;
 import io.github.cdimascio.dotenv.Dotenv;
 
 import java.io.FileInputStream;
@@ -41,6 +42,7 @@ public class GameView extends Application {
     private ApiClient apiClient;
     private ApiMap apiMap;
     private ApiVaisseau apiVaisseau;
+    private ApiModule apiModule;
     private String idEquipe;
 
     // Palette de couleurs pour les équipes
@@ -72,6 +74,7 @@ public class GameView extends Application {
         this.apiClient = new ApiClient(dotenv.get("API_URL"), dotenv.get("API_KEY"));
         apiMap = new ApiMap(apiClient);
         apiVaisseau = new ApiVaisseau(apiClient);
+        apiModule = new ApiModule(apiClient);
         idEquipe = "c1b647f1-1748-492a-b5a9-2a9af9b5e5ed";
 
         // Charger les IDs des vaisseaux et planètes alliés
@@ -175,14 +178,14 @@ public class GameView extends Application {
             return Color.GRAY;
         }
 
-        // Notre équipe est toujours BLEU
+        // Notre équipe est toujours BLEU FONCÉ
         if (equipeId.equals(idEquipe)) {
             if (!equipeColors.containsKey(equipeId)) {
-                equipeColors.put(equipeId, Color.BLUE);
+                equipeColors.put(equipeId, Color.DARKBLUE);
                 equipeNames.put(equipeId, equipeName != null ? equipeName : "Notre équipe");
-                System.out.println("Notre équipe: " + equipeName + " (VOUS) - Couleur: BLEU");
+                System.out.println("Notre équipe: " + equipeName + " (VOUS) - Couleur: BLEU FONCÉ");
             }
-            return Color.BLUE;
+            return Color.DARKBLUE;
         }
 
         // Si l'équipe n'a pas encore de couleur, lui en assigner une depuis la palette
@@ -211,6 +214,7 @@ public class GameView extends Application {
     }
 
     private String getColorName(Color color) {
+        if (color == Color.DARKBLUE) return "BLEU FONCÉ";
         if (color == Color.BLUE) return "BLEU";
         if (color == Color.CYAN) return "CYAN";
         if (color == Color.MAGENTA) return "MAGENTA";
@@ -234,8 +238,8 @@ public class GameView extends Application {
             // L'API retourne une erreur d'entité manquante
             // On va détecter les vaisseaux alliés dynamiquement depuis la carte aussi
 
-            // On définit notre équipe en bleu
-            equipeColors.put(idEquipe, Color.BLUE);
+            // On définit notre équipe en bleu foncé
+            equipeColors.put(idEquipe, Color.DARKBLUE);
             equipeNames.put(idEquipe, "Les Pointeurs Fous");
 
         } catch (Exception e) {
@@ -504,6 +508,127 @@ public class GameView extends Application {
         }).start();
     }
 
+    private void showPlaceModuleDialog(String idPlanete) {
+        new Thread(() -> {
+            try {
+                // Récupérer la liste des modules disponibles
+                String modulesJson = apiModule.listerModules(idEquipe);
+                JsonArray modules = gson.fromJson(modulesJson, JsonArray.class);
+
+                // Debug: afficher la structure des modules
+                System.out.println("=== MODULES JSON ===");
+                System.out.println(modulesJson);
+                System.out.println("====================");
+
+                Platform.runLater(() -> {
+                    if (modules == null || modules.size() == 0) {
+                        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                        alert.setTitle("Aucun module");
+                        alert.setContentText("Vous n'avez aucun module disponible à poser.");
+                        alert.showAndWait();
+                        return;
+                    }
+
+                    // Créer une liste de choix pour les modules
+                    ChoiceDialog<String> dialog = new ChoiceDialog<>();
+                    dialog.setTitle("Poser un module");
+                    dialog.setHeaderText("Sélectionnez un module à poser sur cette planète");
+                    dialog.setContentText("Module:");
+
+                    // Ajouter les modules à la liste
+                    Map<String, String> moduleMap = new HashMap<>();
+                    for (int i = 0; i < modules.size(); i++) {
+                        JsonObject module = modules.get(i).getAsJsonObject();
+
+                        // Ignorer les modules déjà posés sur une planète
+                        if (module.has("idPlanete") && module.get("idPlanete") != null && !module.get("idPlanete").isJsonNull()) {
+                            continue;
+                        }
+
+                        // L'ID est à la racine
+                        String moduleId = module.has("id") ? module.get("id").getAsString() : null;
+                        if (moduleId == null) {
+                            continue;
+                        }
+
+                        // Le type de module est dans paramModule.typeModule
+                        String moduleType = "";
+                        if (module.has("paramModule") && module.get("paramModule").isJsonObject()) {
+                            JsonObject paramModule = module.get("paramModule").getAsJsonObject();
+                            if (paramModule.has("typeModule")) {
+                                moduleType = paramModule.get("typeModule").getAsString();
+                                // Formater le type pour l'affichage
+                                moduleType = moduleType.replace("_", " ").toLowerCase();
+                                moduleType = moduleType.substring(0, 1).toUpperCase() + moduleType.substring(1);
+                            }
+                        }
+
+                        String displayName = moduleType.isEmpty() ? "Module #" + (i+1) : moduleType;
+                        moduleMap.put(displayName, moduleId);
+                        dialog.getItems().add(displayName);
+                    }
+
+                    // Afficher le dialogue et attendre la sélection
+                    dialog.showAndWait().ifPresent(selectedName -> {
+                        String selectedModuleId = moduleMap.get(selectedName);
+                        if (selectedModuleId != null) {
+                            executePlaceModuleAction(selectedModuleId, idPlanete);
+                        }
+                    });
+                });
+
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Erreur");
+                    alert.setContentText("Impossible de récupérer les modules: " + e.getMessage());
+                    alert.showAndWait();
+                });
+            }
+        }).start();
+    }
+
+    private void executePlaceModuleAction(String moduleId, String idPlanete) {
+        new Thread(() -> {
+            try {
+                System.out.println("=== POSE DE MODULE ===");
+                System.out.println("ID Équipe: " + idEquipe);
+                System.out.println("ID Module: " + moduleId);
+                System.out.println("ID Planète: " + idPlanete);
+
+                String response = apiModule.poserModule(idEquipe, moduleId, idPlanete);
+
+                // Vérifier si la réponse contient une erreur
+                if (response != null && response.contains("\"code\":\"-1\"")) {
+                    JsonObject responseObj = gson.fromJson(response, JsonObject.class);
+                    String errorMessage = responseObj.has("message") ?
+                        responseObj.get("message").getAsString() : "Erreur inconnue";
+                    throw new Exception(errorMessage);
+                }
+
+                System.out.println("Module posé avec succès!");
+                System.out.println("======================");
+
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("Succès");
+                    alert.setContentText("Module posé avec succès !");
+                    alert.showAndWait();
+                });
+            } catch (Exception e) {
+                System.err.println("Erreur lors de la pose du module: " + e.getMessage());
+                e.printStackTrace();
+
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Erreur");
+                    alert.setContentText("Erreur: " + e.getMessage());
+                    alert.showAndWait();
+                });
+            }
+        }).start();
+    }
+
     private void handleCellClick(int mapX, int mapY) {
         if (currentMapCases == null) {
             return;
@@ -645,6 +770,21 @@ public class GameView extends Application {
             // Ajouter tous les éléments au panneau
             planetePanel.getChildren().addAll(posLabel, idLabel, typeLabel, biomeLabel, pdvLabel, propLabel,
                                               mineraiTitle, ressourcesBox);
+
+            // Si la planète nous appartient, ajouter l'option de poser des modules
+            boolean isOurPlanet = proprietaire.toLowerCase().contains("pointeur") ||
+                                  proprietaire.toLowerCase().contains("fou");
+
+            if (isOurPlanet) {
+                Label moduleTitle = new Label("\nModules:");
+                moduleTitle.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+
+                Button placeModuleBtn = new Button("Poser un module");
+                placeModuleBtn.setStyle("-fx-background-color: #4a4a4a; -fx-text-fill: white;");
+                placeModuleBtn.setOnAction(e -> showPlaceModuleDialog(id));
+
+                planetePanel.getChildren().addAll(moduleTitle, placeModuleBtn);
+            }
 
             // Bouton pour revenir à la liste des vaisseaux
             Button backButton = new Button("← Retour aux vaisseaux");

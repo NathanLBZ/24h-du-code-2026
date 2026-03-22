@@ -32,14 +32,22 @@ public class ApiClient {
     }
 
     public String post(String path, String json) throws Exception {
+        String fullUrl = url + path;
+        System.out.println("[POST] " + fullUrl);
+        System.out.println("[BODY] " + json);
+
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url + path))
+                .uri(URI.create(fullUrl))
                 .header("Authorization", "Bearer " + token)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(json))
                 .build();
 
-        return client.send(request, HttpResponse.BodyHandlers.ofString()).body();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        System.out.println("[RESPONSE] Status: " + response.statusCode());
+        System.out.println("[RESPONSE] Body: " + response.body());
+
+        return response.body();
     }
 
     public String patch(String path, String json) throws Exception {
@@ -64,13 +72,21 @@ public class ApiClient {
     }
 
     public String put(String path, String json) throws Exception {
-    HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(url + path))
-            .header("Authorization", "Bearer " + token)
-            .header("Content-Type", "application/json")
-            .PUT(HttpRequest.BodyPublishers.ofString(json))
-            .build();
+        String fullUrl = url + path;
+        System.out.println("[PUT] " + fullUrl);
+        System.out.println("[BODY] " + json);
 
-    return client.send(request, HttpResponse.BodyHandlers.ofString()).body();
-}
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(fullUrl))
+                .header("Authorization", "Bearer " + token)
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(json))
+                .build();
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        System.out.println("[RESPONSE] Status: " + response.statusCode());
+        System.out.println("[RESPONSE] Body: " + response.body());
+
+        return response.body();
+    }
 }

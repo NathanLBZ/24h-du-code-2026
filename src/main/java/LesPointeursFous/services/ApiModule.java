@@ -16,11 +16,11 @@ public class ApiModule {
         return api.get("equipes/" + idEquipe + "/modules/" + moduleId);
     }
 
-    public void poserModule(String idEquipe, String moduleId, String idPlanete) throws Exception {
+    public String poserModule(String idEquipe, String moduleId, String idPlanete) throws Exception {
         String path = "equipes/" + idEquipe + "/module/" + moduleId + "/poser";
         String json = "{\"idModule\": \"" + moduleId + "\", \"idPlanete\": \"" + idPlanete + "\"}";
 
-        api.put(path, json);
+        return api.put(path, json);
     }
 
     public void supprimerModule(String idEquipe, String moduleId) throws Exception {
